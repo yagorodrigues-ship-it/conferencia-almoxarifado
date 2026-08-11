@@ -1,4 +1,4 @@
 streamlit
 pandas
 openpyxl
-gspread
+psycopg2-binary
