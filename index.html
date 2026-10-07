@@ -71,15 +71,15 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-300 mb-1">Selecione o Ficheiro Excel (.xlsx / .csv):</label>
-                        <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 bg-slate-900 rounded-lg border border-slate-700 cursor-pointer">
+                        <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" onchange="detectarDadosExcel(this)" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 bg-slate-900 rounded-lg border border-slate-700 cursor-pointer">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Nº Transferência / Guia:</label>
-                        <input type="text" id="numTransferencia" placeholder="Ex: TRF-2026-098" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Nº Transferência / Guia (Auto):</label>
+                        <input type="text" id="numTransferencia" placeholder="Auto preenchido pelo arquivo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none font-bold text-blue-400">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Filial Destino:</label>
-                        <input type="text" id="filialDestino" placeholder="Ex: Filial 12 - Porto" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Filial Destino (Auto):</label>
+                        <input type="text" id="filialDestino" placeholder="Auto lido do Excel" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none text-emerald-400 font-semibold">
                     </div>
                 </div>
 
@@ -279,14 +279,55 @@
             }
         }
 
+        // DETECÇÃO AUTOMÁTICA DE DADOS AO SELECIONAR O EXCEL
+        function detectarDadosExcel(input) {
+            if (!input.files.length) return;
+            const file = input.files[0];
+
+            // 1. Puxa automaticamente o número da transferência pelo nome do arquivo (ex: 1911549.xlsx -> 1911549)
+            let nomeSemExtensao = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+            document.getElementById('numTransferencia').value = nomeSemExtensao;
+
+            // 2. Lê a planilha em segundo plano para extrair o Destino automaticamente
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
+
+                if (jsonData.length > 1) {
+                    const cabecalhos = jsonData[0] || [];
+                    let colDestinoIdx = -1;
+
+                    // Procura por cabeçalhos comuns de destino
+                    cabecalhos.forEach((header, idx) => {
+                        if (header && typeof header === 'string') {
+                            const hUpper = header.toUpperCase();
+                            if (hUpper.includes('DESTINO') || hUpper.includes('FILIAL') || hUpper.includes('LOCAL')) {
+                                colDestinoIdx = idx;
+                            }
+                        }
+                    });
+
+                    if (colDestinoIdx !== -1 && jsonData[1][colDestinoIdx]) {
+                        document.getElementById('filialDestino').value = jsonData[1][colDestinoIdx];
+                    } else {
+                        document.getElementById('filialDestino').value = 'Filial Matriz / Destino';
+                    }
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
         // LEITURA DO EXCEL (Mapeando colunas Y, Z, AD, AF)
         function carregarExcel() {
             const fileInput = document.getElementById('fileExcel');
             const numTrf = document.getElementById('numTransferencia').value.trim();
             const filial = document.getElementById('filialDestino').value.trim();
 
-            if (!fileInput.files.length || !numTrf || !filial) {
-                alert('Por favor, preencha o Número da Transferência, a Filial de Destino e selecione o ficheiro Excel.');
+            if (!fileInput.files.length) {
+                alert('Por favor, selecione o ficheiro Excel.');
                 return;
             }
 
@@ -300,8 +341,8 @@
                 const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
 
                 transferenciaAtual = {
-                    numero: numTrf,
-                    destino: filial,
+                    numero: numTrf || 'TRF-' + Date.now(),
+                    destino: filial || 'Destino Padrão',
                     status: 'Aberto (Separação)',
                     itens: [],
                     fotosCarga: [],
@@ -333,7 +374,7 @@
                 }
 
                 renderizarTabelaItens();
-                alert(`Transferência ${numTrf} importada com sucesso! ${transferenciaAtual.itens.length} itens carregados.`);
+                alert(`Transferência ${transferenciaAtual.numero} importada com sucesso! ${transferenciaAtual.itens.length} itens carregados.`);
             };
 
             reader.readAsArrayBuffer(file);
@@ -435,7 +476,7 @@
             transferenciaAtual.obsCarga = document.getElementById('obsCarga').value;
             transferenciaAtual.status = 'Embarcado / Aguardando Romaneio';
             salvarHistoricoLocal();
-            alert(`Carga da Transferência ${transferenciaAtual.numero} autorizada e embarcada com sucesso! Envida para a Tela 2 (ADM).`);
+            alert(`Carga da Transferência ${transferenciaAtual.numero} autorizada e embarcada com sucesso! Enviada para a Tela 2 (ADM).`);
         }
 
         function salvarHistoricoLocal() {
