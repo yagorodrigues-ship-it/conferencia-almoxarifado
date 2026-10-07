@@ -19,32 +19,35 @@
         }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+<body class="bg-emerald-950 text-slate-100 min-h-screen font-sans">
 
-    <!-- HEADER / NAVEGAÇÃO -->
-    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
+    <!-- HEADER / NAVEGAÇÃO ENTRE TELAS -->
+    <header class="bg-emerald-900 border-b border-emerald-800 sticky top-0 z-50 shadow-lg">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center gap-3">
-                <i class="fa-solid font-bold text-2xl text-blue-500 fa-boxes-stacked"></i>
+                <i class="fa-solid font-bold text-2xl text-emerald-400 fa-boxes-stacked"></i>
                 <div>
-                    <h1 class="font-bold text-lg leading-tight">SGT - Guardião Logístico</h1>
-                    <p class="text-xs text-slate-400">Auditoria & Rastreabilidade de Transferências</p>
+                    <h1 class="font-bold text-lg leading-tight text-emerald-100">SGT - Guardião Logístico</h1>
+                    <p class="text-xs text-emerald-300">Auditoria & Rastreabilidade de Transferências</p>
                 </div>
             </div>
 
             <!-- Botões de Troca de Tela -->
-            <div class="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
-                <button id="btnNavOperacao" onclick="mudarTela('operacao')" class="px-4 py-2 rounded-md text-sm font-semibold transition bg-blue-600 text-white shadow">
-                    <i class="fa-solid fa-hard-hat mr-1.5"></i> Tela 1: Operação & Pátio
+            <div class="flex items-center gap-2 bg-emerald-950 p-1 rounded-lg border border-emerald-800">
+                <button id="btnNavOperacao" onclick="mudarTela('operacao')" class="px-3 py-1.5 rounded-md text-xs font-semibold transition bg-emerald-600 text-white shadow">
+                    <i class="fa-solid fa-hard-hat mr-1"></i> Tela 1: Pátio
                 </button>
-                <button id="btnNavADM" onclick="mudarTela('adm')" class="px-4 py-2 rounded-md text-sm font-semibold text-slate-400 hover:text-white transition">
-                    <i class="fa-solid fa-file-signature mr-1.5"></i> Tela 2: ADM & Romaneios
+                <button id="btnNavADM" onclick="mudarTela('adm')" class="px-3 py-1.5 rounded-md text-xs font-semibold text-emerald-300 hover:text-white transition">
+                    <i class="fa-solid fa-file-signature mr-1"></i> Tela 2: ADM
+                </button>
+                <button id="btnNavFiltro" onclick="mudarTela('filtro')" class="px-3 py-1.5 rounded-md text-xs font-semibold text-emerald-300 hover:text-white transition">
+                    <i class="fa-solid fa-filter mr-1"></i> Tela 3: Consulta
                 </button>
             </div>
 
             <!-- Configurações Google Sheets -->
             <div>
-                <button onclick="abrirModalConfig()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 border border-slate-600 transition">
+                <button onclick="abrirModalConfig()" class="bg-emerald-800 hover:bg-emerald-700 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 border border-emerald-700 transition">
                     <i class="fa-solid fa-gear text-amber-400"></i> Google Sheets
                 </button>
             </div>
@@ -60,30 +63,30 @@
         <div id="telaOperacao" class="space-y-6">
 
             <!-- PASSO 1: IMPORTAÇÃO DO EXCEL DO ERP -->
-            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md">
-                <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
-                    <h2 class="text-base font-bold text-blue-400 flex items-center gap-2">
+            <div class="bg-emerald-900/80 rounded-xl p-5 border border-emerald-800 shadow-md">
+                <div class="flex items-center justify-between mb-4 border-b border-emerald-800 pb-3">
+                    <h2 class="text-base font-bold text-emerald-300 flex items-center gap-2">
                         <i class="fa-solid fa-file-import"></i> Etapa 1. Importar Transferência do ERP
                     </h2>
-                    <span class="text-xs text-slate-400">Mapeamento Fixo: Y (Código), Z (Descrição), AC (Qtd ERP), AD (Patrimônio), AF (Lote)</span>
+                    <span class="text-xs text-emerald-400">Mapeamento Fixo: Y (Código), Z (Descrição), AC (Qtd ERP), AD (Patrimônio), AF (Lote)</span>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Selecione o Ficheiro Excel (.xlsx / .csv):</label>
-                        <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" onchange="detectarDadosExcel(this)" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 bg-slate-900 rounded-lg border border-slate-700 cursor-pointer">
+                        <label class="block text-xs font-semibold text-emerald-200 mb-1">Selecione o Ficheiro Excel (.xlsx / .csv):</label>
+                        <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" onchange="detectarDadosExcel(this)" class="block w-full text-xs text-emerald-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 bg-emerald-950 rounded-lg border border-emerald-800 cursor-pointer">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Nº Transferência / Guia (Auto):</label>
-                        <input type="text" id="numTransferencia" placeholder="Auto pelo arquivo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none font-bold text-blue-400">
+                        <label class="block text-xs font-semibold text-emerald-200 mb-1">Nº Transferência / Guia (Auto):</label>
+                        <input type="text" id="numTransferencia" placeholder="Auto pelo arquivo" class="w-full bg-emerald-950 border border-emerald-800 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 outline-none font-bold text-emerald-400">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Origem (Colunas B + C):</label>
-                        <input type="text" id="filialOrigem" placeholder="Auto lido do Excel" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none text-slate-300 text-xs font-semibold">
+                        <label class="block text-xs font-semibold text-emerald-200 mb-1">Origem (Colunas B + C):</label>
+                        <input type="text" id="filialOrigem" placeholder="Auto lido do Excel" class="w-full bg-emerald-950 border border-emerald-800 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 outline-none text-emerald-100 text-xs font-semibold">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Destino (Colunas D + E):</label>
-                        <input type="text" id="filialDestino" placeholder="Auto lido do Excel" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none text-emerald-400 font-semibold text-xs">
+                        <label class="block text-xs font-semibold text-emerald-200 mb-1">Destino (Colunas D + E):</label>
+                        <input type="text" id="filialDestino" placeholder="Auto lido do Excel" class="w-full bg-emerald-950 border border-emerald-800 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 outline-none text-emerald-400 font-semibold text-xs">
                     </div>
                 </div>
 
@@ -95,22 +98,22 @@
             </div>
 
             <!-- PASSO 2: SEPARAÇÃO E EVIDENCIAÇÃO (ALMOXARIFE) -->
-            <div id="secaoAlmoxarife" class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+            <div id="secaoAlmoxarife" class="bg-emerald-900/80 rounded-xl p-5 border border-emerald-800 shadow-md">
+                <div class="flex justify-between items-center mb-4 border-b border-emerald-800 pb-3">
                     <div>
                         <h2 class="text-base font-bold text-amber-400 flex items-center gap-2">
                             <i class="fa-solid fa-boxes-packing"></i> Etapa 2. Evidenciação por Item (Almoxarife)
                         </h2>
-                        <p class="text-xs text-slate-400">Confira a quantidade e tire até 5 fotos por item.</p>
+                        <p class="text-xs text-emerald-300">Confira a quantidade e tire até 5 fotos por item.</p>
                     </div>
-                    <button onclick="concluirSeparacao()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition">
+                    <button onclick="concluirSeparacao()" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition">
                         <i class="fa-solid fa-check-double"></i> Concluir Separação (Ir p/ Embarque)
                     </button>
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm text-slate-300">
-                        <thead class="bg-slate-900/80 text-xs text-slate-400 uppercase border-b border-slate-700">
+                    <table class="w-full text-left text-sm text-emerald-100">
+                        <thead class="bg-emerald-950 text-xs text-emerald-300 uppercase border-b border-emerald-800">
                             <tr>
                                 <th class="p-3">Código (Y)</th>
                                 <th class="p-3">Descrição (Z)</th>
@@ -122,9 +125,9 @@
                                 <th class="p-3 text-center">Fotos Evidência (Até 5)</th>
                             </tr>
                         </thead>
-                        <tbody id="tabelaItens" class="divide-y divide-slate-700/50">
+                        <tbody id="tabelaItens" class="divide-y divide-emerald-800/50">
                             <tr>
-                                <td colspan="8" class="p-8 text-center text-slate-500">Nenhuma transferência carregada. Importe um ficheiro Excel acima.</td>
+                                <td colspan="8" class="p-8 text-center text-emerald-400">Nenhuma transferência carregada. Importe um ficheiro Excel acima.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -132,28 +135,28 @@
             </div>
 
             <!-- PASSO 3: EMBARQUE E CARGA (SUPERVISOR / ENCARREGADO) -->
-            <div id="secaoSupervisor" class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+            <div id="secaoSupervisor" class="bg-emerald-900/80 rounded-xl p-5 border border-emerald-800 shadow-md">
+                <div class="flex justify-between items-center mb-4 border-b border-emerald-800 pb-3">
                     <div>
-                        <h2 class="text-base font-bold text-purple-400 flex items-center gap-2">
+                        <h2 class="text-base font-bold text-emerald-300 flex items-center gap-2">
                             <i class="fa-solid fa-truck-ramp-box"></i> Etapa 3. Liberação da Carga & Caminhão (Supervisor)
                         </h2>
-                        <p class="text-xs text-slate-400">Adicione as fotos dos volumes embalados, caminhão e observações de saída.</p>
+                        <p class="text-xs text-emerald-400">Adicione as fotos dos volumes embalados, caminhão e observações de saída.</p>
                     </div>
-                    <button onclick="concluirEmbarque()" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition">
+                    <button onclick="concluirEmbarque()" class="bg-teal-600 hover:bg-teal-500 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition">
                         <i class="fa-solid fa-truck-fast"></i> Autorizar e Concluir Embarque
                     </button>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Fotos da Carga Embalada / Caminhão (Até 5 fotos):</label>
-                        <input type="file" id="fotosCarga" accept="image/*" multiple onchange="previewFotosCarga(this)" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white bg-slate-900 rounded-lg border border-slate-700">
+                        <label class="block text-xs font-semibold text-emerald-200 mb-1">Fotos da Carga Embalada / Caminhão (Até 5 fotos):</label>
+                        <input type="file" id="fotosCarga" accept="image/*" multiple onchange="previewFotosCarga(this)" class="block w-full text-xs text-emerald-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-teal-600 file:text-white bg-emerald-950 rounded-lg border border-emerald-800">
                         <div id="galeriaFotosCarga" class="flex flex-wrap gap-2 mt-3"></div>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Observações do Envio / Previsão de Saída:</label>
-                        <textarea id="obsCarga" rows="3" placeholder="Ex: Carga posicionada no baú 02. Lacre nº 987654. Previsão de saída às 14h." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm focus:border-purple-500 outline-none"></textarea>
+                        <label class="block text-xs font-semibold text-emerald-200 mb-1">Observações do Envio / Previsão de Saída:</label>
+                        <textarea id="obsCarga" rows="3" placeholder="Ex: Carga posicionada no baú 02. Lacre nº 987654. Previsão de saída às 14h." class="w-full bg-emerald-950 border border-emerald-800 rounded-lg p-3 text-sm focus:border-teal-500 outline-none"></textarea>
                     </div>
                 </div>
             </div>
@@ -165,47 +168,47 @@
         <!-- ========================================== -->
         <div id="telaADM" class="space-y-6 hidden">
             
-            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
-                    <h2 class="text-base font-bold text-emerald-400 flex items-center gap-2">
+            <div class="bg-emerald-900/80 rounded-xl p-5 border border-emerald-800 shadow-md">
+                <div class="flex justify-between items-center mb-4 border-b border-emerald-800 pb-3">
+                    <h2 class="text-base font-bold text-emerald-300 flex items-center gap-2">
                         <i class="fa-solid fa-file-invoice-dollar"></i> Etapa 4. Lançamento de Romaneio Assinado
                     </h2>
-                    <span class="text-xs text-slate-400">Validação final administrativa</span>
+                    <span class="text-xs text-emerald-400">Validação final administrativa</span>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Selecione a Transferência Embarcada:</label>
-                        <select id="selectTransferenciasADM" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
+                        <label class="block text-xs font-semibold text-emerald-200 mb-1">Selecione a Transferência Embarcada:</label>
+                        <select id="selectTransferenciasADM" class="w-full bg-emerald-950 border border-emerald-800 rounded-lg px-3 py-2 text-sm text-emerald-100 outline-none">
                             <option value="">Selecione...</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Nº do Romaneio / Conhecimento:</label>
-                        <input type="text" id="numRomaneio" placeholder="Ex: ROM-88712" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none">
+                        <label class="block text-xs font-semibold text-emerald-200 mb-1">Nº do Romaneio / Conhecimento:</label>
+                        <input type="text" id="numRomaneio" placeholder="Ex: ROM-88712" class="w-full bg-emerald-950 border border-emerald-800 rounded-lg px-3 py-2 text-sm outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Digitalização / Foto do Romaneio Assinado:</label>
-                        <input type="file" id="fotoRomaneio" accept="image/*" onchange="previewFotoRomaneio(this)" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white bg-slate-900 rounded-lg border border-slate-700">
+                        <label class="block text-xs font-semibold text-emerald-200 mb-1">Digitalização / Foto do Romaneio Assinado:</label>
+                        <input type="file" id="fotoRomaneio" accept="image/*" onchange="previewFotoRomaneio(this)" class="block w-full text-xs text-emerald-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white bg-emerald-950 rounded-lg border border-emerald-800">
                     </div>
                 </div>
 
                 <div class="flex justify-end">
                     <button onclick="finalizarRomaneio()" class="bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow transition">
-                        <i class="fa-solid fa-check"></i> Baixar e Concluir Romaneio
+                        <i class="fa-solid fa-check"></i> Baixar e Concluir Romaneio (Status: Romaneio Assinado)
                     </button>
                 </div>
             </div>
 
             <!-- HISTÓRICO DE AUDITORIAS -->
-            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md">
-                <h2 class="text-base font-bold text-slate-200 mb-4 flex items-center gap-2">
+            <div class="bg-emerald-900/80 rounded-xl p-5 border border-emerald-800 shadow-md">
+                <h2 class="text-base font-bold text-emerald-100 mb-4 flex items-center gap-2">
                     <i class="fa-solid fa-clock-rotate-left"></i> Histórico de Transferências Registadas
                 </h2>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm text-slate-300">
-                        <thead class="bg-slate-900 text-xs text-slate-400 uppercase border-b border-slate-700">
+                    <table class="w-full text-left text-sm text-emerald-100">
+                        <thead class="bg-emerald-950 text-xs text-emerald-300 uppercase border-b border-emerald-800">
                             <tr>
                                 <th class="p-3">Data</th>
                                 <th class="p-3">Nº Transferência</th>
@@ -216,9 +219,9 @@
                                 <th class="p-3">Romaneio</th>
                             </tr>
                         </thead>
-                        <tbody id="tabelaHistorico" class="divide-y divide-slate-700/50">
+                        <tbody id="tabelaHistorico" class="divide-y divide-emerald-800/50">
                             <tr>
-                                <td colspan="7" class="p-6 text-center text-slate-500">Nenhum registo guardado até ao momento.</td>
+                                <td colspan="7" class="p-6 text-center text-emerald-400">Nenhum registo guardado até ao momento.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -227,28 +230,76 @@
 
         </div>
 
+        <!-- ========================================== -->
+        <!-- TELA 3: FILTRO & CONSULTA ESPECÍFICA -->
+        <!-- ========================================== -->
+        <div id="telaFiltro" class="space-y-6 hidden">
+            <div class="bg-emerald-900/80 rounded-xl p-5 border border-emerald-800 shadow-md">
+                <div class="flex justify-between items-center mb-4 border-b border-emerald-800 pb-3">
+                    <h2 class="text-base font-bold text-emerald-300 flex items-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass"></i> Consulta e Filtro de Transferência
+                    </h2>
+                    <span class="text-xs text-emerald-400">Pesquise por qualquer número de transferência registrado</span>
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-3 mb-6">
+                    <input type="text" id="inputFiltroTrf" placeholder="Digite o Nº da Transferência (Ex: 1911556)" class="flex-1 bg-emerald-950 border border-emerald-800 rounded-lg px-4 py-2.5 text-sm text-emerald-100 outline-none focus:border-emerald-500 font-bold">
+                    <button onclick="filtrarTransferencia()" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-search"></i> Buscar Detalhes
+                    </button>
+                </div>
+
+                <!-- RESULTADO DO FILTRO -->
+                <div id="resultadoFiltroContainer" class="hidden space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-emerald-950 p-4 rounded-lg border border-emerald-800 text-xs">
+                        <div><span class="text-emerald-400 font-semibold">Nº Transferência:</span> <p id="filtroNum" class="text-sm font-bold text-emerald-200"></p></div>
+                        <div><span class="text-emerald-400 font-semibold">Origem:</span> <p id="filtroOrigem" class="text-emerald-200"></p></div>
+                        <div><span class="text-emerald-400 font-semibold">Destino:</span> <p id="filtroDestino" class="text-emerald-200"></p></div>
+                        <div><span class="text-emerald-400 font-semibold">Status Atual:</span> <p id="filtroStatus" class="font-bold text-amber-400"></p></div>
+                    </div>
+
+                    <h3 class="text-sm font-bold text-emerald-200 mt-4">Itens da Transferência:</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-emerald-100">
+                            <thead class="bg-emerald-950 text-emerald-300 uppercase border-b border-emerald-800">
+                                <tr>
+                                    <th class="p-2.5">Código</th>
+                                    <th class="p-2.5">Descrição</th>
+                                    <th class="p-2.5">Patrimônio / Ativo</th>
+                                    <th class="p-2.5">Lote</th>
+                                    <th class="p-2.5 text-center">Qtd Conferida / ERP</th>
+                                    <th class="p-2.5">Observação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaFiltroItens" class="divide-y divide-emerald-800/40"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <!-- MODAL CONFIGURAÇÃO GOOGLE SHEETS -->
     <div id="modalConfig" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+        <div class="bg-emerald-900 border border-emerald-700 rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-emerald-800 pb-3">
                 <h3 class="font-bold text-lg text-amber-400 flex items-center gap-2">
                     <i class="fa-solid fa-cloud-arrow-up"></i> Conexão Google Sheets (Nuvem)
                 </h3>
-                <button onclick="fecharModalConfig()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+                <button onclick="fecharModalConfig()" class="text-emerald-300 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
 
-            <p class="text-xs text-slate-300 leading-relaxed">
+            <p class="text-xs text-emerald-200 leading-relaxed">
                 URL do Web App do seu Google Apps Script para salvamento automático no Google Sheets e Google Drive.
             </p>
 
             <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1">URL do Web App do Google Apps Script:</label>
-                <input type="text" id="urlGoogleScript" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs text-slate-200 outline-none focus:border-amber-400">
+                <label class="block text-xs font-semibold text-emerald-200 mb-1">URL do Web App do Google Apps Script:</label>
+                <input type="text" id="urlGoogleScript" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-emerald-950 border border-emerald-800 rounded-lg p-3 text-xs text-emerald-100 outline-none focus:border-amber-400">
             </div>
 
-            <div class="flex justify-end gap-2 pt-3 border-t border-slate-700">
+            <div class="flex justify-end gap-2 pt-3 border-t border-emerald-800">
                 <button onclick="guardarConfigScript()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-lg text-xs shadow transition">
                     Guardar Conexão
                 </button>
@@ -273,21 +324,27 @@
         let historicoTransferencias = JSON.parse(localStorage.getItem('sgt_historico') || '[]');
 
         function mudarTela(tela) {
+            document.getElementById('telaOperacao').classList.add('hidden');
+            document.getElementById('telaADM').classList.add('hidden');
+            document.getElementById('telaFiltro').classList.add('hidden');
+
+            document.getElementById('btnNavOperacao').className = 'px-3 py-1.5 rounded-md text-xs font-semibold text-emerald-300 hover:text-white transition';
+            document.getElementById('btnNavADM').className = 'px-3 py-1.5 rounded-md text-xs font-semibold text-emerald-300 hover:text-white transition';
+            document.getElementById('btnNavFiltro').className = 'px-3 py-1.5 rounded-md text-xs font-semibold text-emerald-300 hover:text-white transition';
+
             if(tela === 'operacao') {
                 document.getElementById('telaOperacao').classList.remove('hidden');
-                document.getElementById('telaADM').classList.add('hidden');
-                document.getElementById('btnNavOperacao').className = 'px-4 py-2 rounded-md text-sm font-semibold transition bg-blue-600 text-white shadow';
-                document.getElementById('btnNavADM').className = 'px-4 py-2 rounded-md text-sm font-semibold text-slate-400 hover:text-white transition';
-            } else {
-                document.getElementById('telaOperacao').classList.add('hidden');
+                document.getElementById('btnNavOperacao').className = 'px-3 py-1.5 rounded-md text-xs font-semibold transition bg-emerald-600 text-white shadow';
+            } else if(tela === 'adm') {
                 document.getElementById('telaADM').classList.remove('hidden');
-                document.getElementById('btnNavADM').className = 'px-4 py-2 rounded-md text-sm font-semibold transition bg-blue-600 text-white shadow';
-                document.getElementById('btnNavOperacao').className = 'px-4 py-2 rounded-md text-sm font-semibold text-slate-400 hover:text-white transition';
+                document.getElementById('btnNavADM').className = 'px-3 py-1.5 rounded-md text-xs font-semibold transition bg-emerald-600 text-white shadow';
                 atualizarTelaADM();
+            } else if(tela === 'filtro') {
+                document.getElementById('telaFiltro').classList.remove('hidden');
+                document.getElementById('btnNavFiltro').className = 'px-3 py-1.5 rounded-md text-xs font-semibold transition bg-emerald-600 text-white shadow';
             }
         }
 
-        // DETECÇÃO AUTOMÁTICA DE DADOS AO SELECIONAR O EXCEL
         function detectarDadosExcel(input) {
             if (!input.files.length) return;
             const file = input.files[0];
@@ -304,14 +361,11 @@
 
                 if (jsonData.length > 1) {
                     const row = jsonData[1];
-                    
-                    // Coluna B (índice 1) + C (índice 2) -> ORIGEM
                     const codOrigem = row[1] !== undefined ? String(row[1]).trim() : '';
                     const descOrigem = row[2] !== undefined ? String(row[2]).trim() : '';
                     let origemCompleta = `${codOrigem} - ${descOrigem}`.replace(/^ - |- $/g, '').trim();
                     if (origemCompleta) document.getElementById('filialOrigem').value = origemCompleta;
 
-                    // Coluna D (índice 3) + E (índice 4) -> DESTINO
                     const codDestino = row[3] !== undefined ? String(row[3]).trim() : '';
                     const descDestino = row[4] !== undefined ? String(row[4]).trim() : '';
                     let destinoCompleto = `${codDestino} - ${descDestino}`.replace(/^ - |- $/g, '').trim();
@@ -321,7 +375,6 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // LEITURA DO EXCEL (Mapeando Estritamente por Letra da Coluna)
         function carregarExcel() {
             const fileInput = document.getElementById('fileExcel');
             
@@ -359,24 +412,12 @@
                     fotoRomaneio: ''
                 };
 
-                if (jsonData.length <= 1) {
-                    alert('O arquivo selecionado está vazio ou sem dados.');
-                    return;
-                }
-
-                // MAPEAMENTO FIXO E EXATO BASEADO NAS LETRAS DAS COLUNAS DA SUA PLANILHA:
-                // Coluna Y  = índice 24 (CODIGO_PRODUTO)
-                // Coluna Z  = índice 25 (DESCRICAO_PRODUTO)
-                // Coluna AC = índice 28 (QTDE_PRODUTO)
-                // Coluna AD = índice 29 (PATRIMONIO)
-                // Coluna AF = índice 31 (LOTE)
                 const idxCod  = 24;
                 const idxDesc = 25;
                 const idxQtd  = 28;
                 const idxPat  = 29;
                 const idxLote = 31;
 
-                // Percorre as linhas do Excel ignorando o cabeçalho (linha 0)
                 for (let i = 1; i < jsonData.length; i++) {
                     const row = jsonData[i];
                     if (row && row.length > 0) {
@@ -419,27 +460,27 @@
 
             transferenciaAtual.itens.forEach((item, index) => {
                 const tr = document.createElement('tr');
-                tr.className = 'hover:bg-slate-700/30 transition';
+                tr.className = 'hover:bg-emerald-800/30 transition';
                 tr.innerHTML = `
-                    <td class="p-3 font-mono font-bold text-blue-400">${item.codigo}</td>
+                    <td class="p-3 font-mono font-bold text-emerald-400">${item.codigo}</td>
                     <td class="p-3">${item.descricao}</td>
-                    <td class="p-3 text-xs text-slate-300 font-semibold">${item.patrimonio}</td>
-                    <td class="p-3 text-xs text-slate-300 font-semibold">${item.lote}</td>
+                    <td class="p-3 text-xs text-emerald-200 font-semibold">${item.patrimonio}</td>
+                    <td class="p-3 text-xs text-emerald-200 font-semibold">${item.lote}</td>
                     <td class="p-3 text-center font-bold text-emerald-400">${item.qtdERP}</td>
                     <td class="p-3 text-center">
-                        <input type="number" value="${item.qtdConferida}" onchange="atualizarQtd(${index}, this.value)" class="w-16 bg-slate-900 border border-slate-700 rounded text-center py-1 text-sm text-amber-400 font-bold focus:border-amber-400 outline-none">
+                        <input type="number" value="${item.qtdConferida}" onchange="atualizarQtd(${index}, this.value)" class="w-16 bg-emerald-950 border border-emerald-800 rounded text-center py-1 text-sm text-amber-400 font-bold focus:border-amber-400 outline-none">
                     </td>
                     <td class="p-3">
-                        <input type="text" value="${item.obs}" placeholder="Avaria / obs..." onchange="atualizarObs(${index}, this.value)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs outline-none">
+                        <input type="text" value="${item.obs}" placeholder="Avaria / obs..." onchange="atualizarObs(${index}, this.value)" class="w-full bg-emerald-950 border border-emerald-800 rounded px-2 py-1 text-xs outline-none">
                     </td>
                     <td class="p-3 text-center">
                         <div class="flex flex-col items-center gap-1">
                             <input type="file" accept="image/*" multiple id="fotoItem_${index}" onchange="adicionarFotoItem(${index}, this)" class="hidden">
-                            <button onclick="document.getElementById('fotoItem_${index}').click()" class="bg-slate-700 hover:bg-slate-600 text-xs px-2.5 py-1 rounded border border-slate-600 flex items-center gap-1">
+                            <button onclick="document.getElementById('fotoItem_${index}').click()" class="bg-emerald-800 hover:bg-emerald-700 text-xs px-2.5 py-1 rounded border border-emerald-700 flex items-center gap-1">
                                 <i class="fa-solid fa-camera"></i> Fotos (${item.fotos.length}/5)
                             </button>
                             <div class="flex gap-1 mt-1 flex-wrap justify-center" id="thumbs_${index}">
-                                ${item.fotos.map((img) => `<img src="${img}" class="w-8 h-8 object-cover rounded border border-slate-600">`).join('')}
+                                ${item.fotos.map((img) => `<img src="${img}" class="w-8 h-8 object-cover rounded border border-emerald-700">`).join('')}
                             </div>
                         </div>
                     </td>
@@ -484,7 +525,7 @@
                     transferenciaAtual.fotosCarga.push(e.target.result);
                     const img = document.createElement('img');
                     img.src = e.target.result;
-                    img.className = 'w-16 h-16 object-cover rounded border border-purple-500 shadow';
+                    img.className = 'w-16 h-16 object-cover rounded border border-teal-500 shadow';
                     galeria.appendChild(img);
                 };
                 reader.readAsDataURL(file);
@@ -550,13 +591,13 @@
             historicoTransferencias.forEach(t => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="p-3 text-xs text-slate-400">${new Date().toLocaleDateString()}</td>
-                    <td class="p-3 font-bold text-blue-400">${t.numero}</td>
+                    <td class="p-3 text-xs text-emerald-300">${new Date().toLocaleDateString()}</td>
+                    <td class="p-3 font-bold text-emerald-400">${t.numero}</td>
                     <td class="p-3 text-xs">${t.origem || '-'}</td>
-                    <td class="p-3 text-xs font-semibold text-emerald-400">${t.destino || '-'}</td>
+                    <td class="p-3 text-xs font-semibold text-emerald-300">${t.destino || '-'}</td>
                     <td class="p-3">${t.itens.length} itens</td>
-                    <td class="p-3"><span class="badge-status bg-amber-500/20 text-amber-400 border border-amber-500/30">${t.status}</span></td>
-                    <td class="p-3 text-xs text-slate-400">${t.romaneio || 'Pendente'}</td>
+                    <td class="p-3"><span class="badge-status bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">${t.status}</span></td>
+                    <td class="p-3 text-xs text-emerald-300">${t.romaneio || 'Pendente'}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -574,15 +615,56 @@
             const trf = historicoTransferencias.find(t => t.numero === numTrf);
             if (trf) {
                 trf.romaneio = numRom;
-                trf.status = 'Concluído & Entregue';
+                trf.status = 'Romaneio Assinado';
                 if (transferenciaAtual.fotoRomaneio) {
                     trf.fotoRomaneio = transferenciaAtual.fotoRomaneio;
                 }
                 localStorage.setItem('sgt_historico', JSON.stringify(historicoTransferencias));
                 atualizarTelaADM();
                 enviarParaGoogleSheets(trf);
-                alert(`Romaneio ${numRom} anexado com sucesso à Transferência ${numTrf}!`);
+                alert(`Romaneio ${numRom} concluído! Status atualizado para "Romaneio Assinado".`);
             }
+        }
+
+        function filtrarTransferencia() {
+            const termo = document.getElementById('inputFiltroTrf').value.trim();
+            const container = document.getElementById('resultadoFiltroContainer');
+            
+            if (!termo) {
+                alert('Digite um número de transferência para buscar.');
+                return;
+            }
+
+            const trf = historicoTransferencias.find(t => t.numero.toLowerCase() === termo.toLowerCase());
+
+            if (!trf) {
+                alert(`Nenhuma transferência encontrada com o número: ${termo}`);
+                container.classList.add('hidden');
+                return;
+            }
+
+            document.getElementById('filtroNum').textContent = trf.numero;
+            document.getElementById('filfiltroOrigem').textContent = trf.origem || '-';
+            document.getElementById('filtroDestino').textContent = trf.destino || '-';
+            document.getElementById('filtroStatus').textContent = trf.status;
+
+            const tbody = document.getElementById('tabelaFiltroItens');
+            tbody.innerHTML = '';
+
+            trf.itens.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2.5 font-mono font-bold text-emerald-400">${item.codigo}</td>
+                    <td class="p-2.5">${item.descricao}</td>
+                    <td class="p-2.5">${item.patrimonio || '-'}</td>
+                    <td class="p-2.5">${item.lote || '-'}</td>
+                    <td class="p-2.5 text-center font-bold text-amber-400">${item.qtdConferida} / ${item.qtdERP}</td>
+                    <td class="p-2.5">${item.obs || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            container.classList.remove('hidden');
         }
 
         function abrirModalConfig() {
