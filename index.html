@@ -284,11 +284,11 @@
             if (!input.files.length) return;
             const file = input.files[0];
 
-            // 1. Puxa automaticamente o número da transferência pelo nome do arquivo (ex: 1911549.xlsx -> 1911549)
+            // 1. Puxa o número da transferência direto do nome do ficheiro (ex: 1911549.xlsx -> 1911549)
             let nomeSemExtensao = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
             document.getElementById('numTransferencia').value = nomeSemExtensao;
 
-            // 2. Lê a planilha em segundo plano para extrair o Destino automaticamente
+            // 2. Tenta extrair a Filial Destino direto da planilha
             const reader = new FileReader();
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
@@ -300,7 +300,6 @@
                     const cabecalhos = jsonData[0] || [];
                     let colDestinoIdx = -1;
 
-                    // Procura por cabeçalhos comuns de destino
                     cabecalhos.forEach((header, idx) => {
                         if (header && typeof header === 'string') {
                             const hUpper = header.toUpperCase();
@@ -312,8 +311,8 @@
 
                     if (colDestinoIdx !== -1 && jsonData[1][colDestinoIdx]) {
                         document.getElementById('filialDestino').value = jsonData[1][colDestinoIdx];
-                    } else {
-                        document.getElementById('filialDestino').value = 'Filial Matriz / Destino';
+                    } else if (!document.getElementById('filialDestino').value) {
+                        document.getElementById('filialDestino').value = 'Filial Destino Geral';
                     }
                 }
             };
@@ -323,17 +322,26 @@
         // LEITURA DO EXCEL (Mapeando colunas Y, Z, AD, AF)
         function carregarExcel() {
             const fileInput = document.getElementById('fileExcel');
-            const numTrf = document.getElementById('numTransferencia').value.trim();
-            const filial = document.getElementById('filialDestino').value.trim();
-
+            
             if (!fileInput.files.length) {
-                alert('Por favor, selecione o ficheiro Excel.');
+                alert('Por favor, selecione um ficheiro Excel primeiro.');
                 return;
             }
 
             const file = fileInput.files[0];
-            const reader = new FileReader();
+            let numTrf = document.getElementById('numTransferencia').value.trim();
+            let filial = document.getElementById('filialDestino').value.trim();
 
+            if (!numTrf) {
+                numTrf = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                document.getElementById('numTransferencia').value = numTrf;
+            }
+            if (!filial) {
+                filial = 'Filial Destino Geral';
+                document.getElementById('filialDestino').value = filial;
+            }
+
+            const reader = new FileReader();
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
@@ -341,15 +349,15 @@
                 const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
 
                 transferenciaAtual = {
-                    numero: numTrf || 'TRF-' + Date.now(),
-                    destino: filial || 'Destino Padrão',
+                    numero: numTrf,
+                    destino: filial,
                     status: 'Aberto (Separação)',
                     itens: [],
                     fotosCarga: [],
                     obsCarga: ''
                 };
 
-                // Pula o cabeçalho (linha 0) e percorre as linhas
+                // Percorre a planilha a partir da linha 1 (ignora o cabeçalho)
                 for (let i = 1; i < jsonData.length; i++) {
                     const row = jsonData[i];
                     if (row && row.length > 0) {
@@ -374,7 +382,7 @@
                 }
 
                 renderizarTabelaItens();
-                alert(`Transferência ${transferenciaAtual.numero} importada com sucesso! ${transferenciaAtual.itens.length} itens carregados.`);
+                alert(`Transferência ${transferenciaAtual.numero} iniciada com sucesso! ${transferenciaAtual.itens.length} itens carregados.`);
             };
 
             reader.readAsArrayBuffer(file);
@@ -406,7 +414,7 @@
                                 <i class="fa-solid fa-camera"></i> Fotos (${item.fotos.length}/5)
                             </button>
                             <div class="flex gap-1 mt-1 flex-wrap justify-center" id="thumbs_${index}">
-                                ${item.fotos.map((img, imgIdx) => `<img src="${img}" class="w-8 h-8 object-cover rounded border border-slate-600">`).join('')}
+                                ${item.fotos.map((img) => `<img src="${img}" class="w-8 h-8 object-cover rounded border border-slate-600">`).join('')}
                             </div>
                         </div>
                     </td>
