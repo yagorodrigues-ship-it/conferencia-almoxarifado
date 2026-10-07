@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SGT - Sistema Integrado de Transferência & Romaneios</title>
+    <title>SGT - Guardião Logístico</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -21,7 +21,7 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
 
-    <!-- HEADER / NAVEGAÇÃO ENTRE TELAS -->
+    <!-- HEADER / NAVEGAÇÃO -->
     <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center gap-3">
@@ -55,7 +55,7 @@
     <main class="max-w-7xl mx-auto p-4">
 
         <!-- ========================================== -->
-        <!-- TELA 1: OPERAÇÃO & PÁTIO (ALMOXARIFE / SUPERVISOR) -->
+        <!-- TELA 1: OPERAÇÃO & PÁTIO -->
         <!-- ========================================== -->
         <div id="telaOperacao" class="space-y-6">
 
@@ -65,21 +65,25 @@
                     <h2 class="text-base font-bold text-blue-400 flex items-center gap-2">
                         <i class="fa-solid fa-file-import"></i> Etapa 1. Importar Transferência do ERP
                     </h2>
-                    <span class="text-xs text-slate-400">Colunas padrão: Y (Código), Z (Descrição), AD (Património), AF (Lote)</span>
+                    <span class="text-xs text-slate-400">Leitura B/C (Origem), D/E (Destino), Y (Código), Z (Descrição), AD (Património), AF (Lote)</span>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-300 mb-1">Selecione o Ficheiro Excel (.xlsx / .csv):</label>
                         <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" onchange="detectarDadosExcel(this)" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 bg-slate-900 rounded-lg border border-slate-700 cursor-pointer">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-300 mb-1">Nº Transferência / Guia (Auto):</label>
-                        <input type="text" id="numTransferencia" placeholder="Auto preenchido pelo arquivo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none font-bold text-blue-400">
+                        <input type="text" id="numTransferencia" placeholder="Auto pelo arquivo" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none font-bold text-blue-400">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">Filial Destino (Auto):</label>
-                        <input type="text" id="filialDestino" placeholder="Auto lido do Excel" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none text-emerald-400 font-semibold">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Origem (Coluna B + C):</label>
+                        <input type="text" id="filialOrigem" placeholder="Auto lido do Excel" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none text-slate-300 text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Destino (Coluna D + E):</label>
+                        <input type="text" id="filialDestino" placeholder="Auto lido do Excel" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none text-emerald-400 font-semibold text-xs">
                     </div>
                 </div>
 
@@ -134,7 +138,7 @@
                         <h2 class="text-base font-bold text-purple-400 flex items-center gap-2">
                             <i class="fa-solid fa-truck-ramp-box"></i> Etapa 3. Liberação da Carga & Caminhão (Supervisor)
                         </h2>
-                        <p class="text-xs text-slate-400">Registe as fotos do palete lacrado e do interior do caminhão antes de liberar.</p>
+                        <p class="text-xs text-slate-400">Carregue a transferência pelo número se for continuar no dia seguinte e adicione as fotos.</p>
                     </div>
                     <button onclick="concluirEmbarque()" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition">
                         <i class="fa-solid fa-truck-fast"></i> Autorizar e Concluir Embarque
@@ -205,6 +209,7 @@
                             <tr>
                                 <th class="p-3">Data</th>
                                 <th class="p-3">Nº Transferência</th>
+                                <th class="p-3">Origem</th>
                                 <th class="p-3">Destino</th>
                                 <th class="p-3">Itens</th>
                                 <th class="p-3">Status</th>
@@ -213,7 +218,7 @@
                         </thead>
                         <tbody id="tabelaHistorico" class="divide-y divide-slate-700/50">
                             <tr>
-                                <td colspan="6" class="p-6 text-center text-slate-500">Nenhum registo guardado até ao momento.</td>
+                                <td colspan="7" class="p-6 text-center text-slate-500">Nenhum registo guardado até ao momento.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -235,7 +240,7 @@
             </div>
 
             <p class="text-xs text-slate-300 leading-relaxed">
-                Para guardar o histórico e as fotos em nuvem sem risco de perda ao limpar a memória do navegador, cole abaixo a URL do seu <strong>Google Apps Script Web App</strong>.
+                Para salvar tudo em nuvem e não perder dados ao limpar o cache, crie uma planilha no Google Sheets, acesse <strong>Extensões > Apps Script</strong>, cole o código do Apps Script e publique como Web App.
             </p>
 
             <div>
@@ -255,6 +260,7 @@
     <script>
         let transferenciaAtual = {
             numero: '',
+            origem: '',
             destino: '',
             status: 'Pendente',
             itens: [],
@@ -284,11 +290,11 @@
             if (!input.files.length) return;
             const file = input.files[0];
 
-            // 1. Puxa o número da transferência direto do nome do ficheiro (ex: 1911549.xlsx -> 1911549)
+            // 1. Puxa o número da transferência direto do nome do arquivo (ex: 1911549.xlsx -> 1911549)
             let nomeSemExtensao = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
             document.getElementById('numTransferencia').value = nomeSemExtensao;
 
-            // 2. Tenta extrair a Filial Destino direto da planilha
+            // 2. Extrai Origem (B + C) e Destino (D + E) da planilha
             const reader = new FileReader();
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
@@ -297,29 +303,24 @@
                 const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
 
                 if (jsonData.length > 1) {
-                    const cabecalhos = jsonData[0] || [];
-                    let colDestinoIdx = -1;
+                    const row = jsonData[1];
+                    // Coluna B (índice 1) + C (índice 2) -> Origem
+                    const codOrigem = row[1] || '';
+                    const descOrigem = row[2] || '';
+                    const origemCompleta = `${codOrigem} - ${descOrigem}`.replace(/^ - |- $/g, '').trim();
+                    if (origemCompleta) document.getElementById('filialOrigem').value = origemCompleta;
 
-                    cabecalhos.forEach((header, idx) => {
-                        if (header && typeof header === 'string') {
-                            const hUpper = header.toUpperCase();
-                            if (hUpper.includes('DESTINO') || hUpper.includes('FILIAL') || hUpper.includes('LOCAL')) {
-                                colDestinoIdx = idx;
-                            }
-                        }
-                    });
-
-                    if (colDestinoIdx !== -1 && jsonData[1][colDestinoIdx]) {
-                        document.getElementById('filialDestino').value = jsonData[1][colDestinoIdx];
-                    } else if (!document.getElementById('filialDestino').value) {
-                        document.getElementById('filialDestino').value = 'Filial Destino Geral';
-                    }
+                    // Coluna D (índice 3) + E (índice 4) -> Destino
+                    const codDestino = row[3] || '';
+                    const descDestino = row[4] || '';
+                    const destinoCompleto = `${codDestino} - ${descDestino}`.replace(/^ - |- $/g, '').trim();
+                    if (destinoCompleto) document.getElementById('filialDestino').value = destinoCompleto;
                 }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // LEITURA DO EXCEL (Mapeando colunas Y, Z, AD, AF)
+        // LEITURA DO EXCEL (Mapeando B/C, D/E, Y, Z, AD, AF)
         function carregarExcel() {
             const fileInput = document.getElementById('fileExcel');
             
@@ -330,15 +331,12 @@
 
             const file = fileInput.files[0];
             let numTrf = document.getElementById('numTransferencia').value.trim();
+            let origem = document.getElementById('filialOrigem').value.trim();
             let filial = document.getElementById('filialDestino').value.trim();
 
             if (!numTrf) {
                 numTrf = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
                 document.getElementById('numTransferencia').value = numTrf;
-            }
-            if (!filial) {
-                filial = 'Filial Destino Geral';
-                document.getElementById('filialDestino').value = filial;
             }
 
             const reader = new FileReader();
@@ -350,7 +348,8 @@
 
                 transferenciaAtual = {
                     numero: numTrf,
-                    destino: filial,
+                    origem: origem || 'Origem Padrão',
+                    destino: filial || 'Destino Padrão',
                     status: 'Aberto (Separação)',
                     itens: [],
                     fotosCarga: [],
@@ -366,7 +365,7 @@
                         const descricao = row[25] || row[1] || 'N/A';
                         const patrimonio = row[29] || row[2] || '-';
                         const lote = row[31] || row[3] || '-';
-                        const qtdERP = row[4] || 1;
+                        const qtdERP = row[5] || row[4] || 1;
 
                         transferenciaAtual.itens.push({
                             codigo: codigo,
@@ -473,7 +472,7 @@
             }
             transferenciaAtual.status = 'Aguardando Embarque';
             salvarHistoricoLocal();
-            alert(`Separação da Transferência ${transferenciaAtual.numero} concluída e bloqueada para o Almoxarife. Aguardando foto da carga do Supervisor.`);
+            alert(`Separação da Transferência ${transferenciaAtual.numero} concluída. Dados salvos para o Supervisor/Encarregado.`);
         }
 
         function concluirEmbarque() {
@@ -517,7 +516,8 @@
                 tr.innerHTML = `
                     <td class="p-3 text-xs text-slate-400">${new Date().toLocaleDateString()}</td>
                     <td class="p-3 font-bold text-blue-400">${t.numero}</td>
-                    <td class="p-3">${t.destino}</td>
+                    <td class="p-3 text-xs">${t.origem || '-'}</td>
+                    <td class="p-3 text-xs font-semibold text-emerald-400">${t.destino || '-'}</td>
                     <td class="p-3">${t.itens.length} itens</td>
                     <td class="p-3"><span class="badge-status bg-amber-500/20 text-amber-400 border border-amber-500/30">${t.status}</span></td>
                     <td class="p-3 text-xs text-slate-400">${t.romaneio || 'Pendente'}</td>
@@ -571,7 +571,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dados)
             }).then(() => {
-                console.log('Dados enviados para o Google Sheets.');
+                console.log('Dados sincronizados com o Google Sheets.');
             }).catch(err => console.error('Erro ao enviar:', err));
         }
     </script>
