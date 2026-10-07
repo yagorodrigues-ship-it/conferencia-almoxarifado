@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGT - Sistema Integrado de Transferência & Romaneios</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (Leitura de Excel .xlsx / .csv) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        .badge-status {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+
+    <!-- HEADER / NAVEGAÇÃO ENTRE TELAS -->
+    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid font-bold text-2xl text-blue-500 fa-boxes-stacked"></i>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">SGT - Guardião Logístico</h1>
+                    <p class="text-xs text-slate-400">Auditoria & Rastreabilidade de Transferências</p>
+                </div>
+            </div>
+
+            <!-- Botões de Troca de Tela -->
+            <div class="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                <button id="btnNavOperacao" onclick="mudarTela('operacao')" class="px-4 py-2 rounded-md text-sm font-semibold transition bg-blue-600 text-white shadow">
+                    <i class="fa-solid fa-hard-hat mr-1.5"></i> Tela 1: Operação & Pátio
+                </button>
+                <button id="btnNavADM" onclick="mudarTela('adm')" class="px-4 py-2 rounded-md text-sm font-semibold text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-file-signature mr-1.5"></i> Tela 2: ADM & Romaneios
+                </button>
+            </div>
+
+            <!-- Configurações Google Sheets -->
+            <div>
+                <button onclick="abrirModalConfig()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 border border-slate-600 transition">
+                    <i class="fa-solid fa-gear text-amber-400"></i> Google Sheets
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTAINER PRINCIPAL -->
+    <main class="max-w-7xl mx-auto p-4">
+
+        <!-- ========================================== -->
+        <!-- TELA 1: OPERAÇÃO & PÁTIO (ALMOXARIFE / SUPERVISOR) -->
+        <!-- ========================================== -->
+        <div id="telaOperacao" class="space-y-6">
+
+            <!-- PASSO 1: IMPORTAÇÃO DO EXCEL DO ERP -->
+            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
+                    <h2 class="text-base font-bold text-blue-400 flex items-center gap-2">
+                        <i class="fa-solid fa-file-import"></i> Etapa 1. Importar Transferência do ERP
+                    </h2>
+                    <span class="text-xs text-slate-400">Colunas padrão: Y (Código), Z (Descrição), AD (Património), AF (Lote)</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Selecione o Ficheiro Excel (.xlsx / .csv):</label>
+                        <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 bg-slate-900 rounded-lg border border-slate-700 cursor-pointer">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Nº Transferência / Guia:</label>
+                        <input type="text" id="numTransferencia" placeholder="Ex: TRF-2026-098" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Filial Destino:</label>
+                        <input type="text" id="filialDestino" placeholder="Ex: Filial 12 - Porto" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <button onclick="carregarExcel()" class="bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow transition">
+                        <i class="fa-solid fa-play"></i> Iniciar Auditoria da Transferência
+                    </button>
+                </div>
+            </div>
+
+            <!-- PASSO 2: SEPARAÇÃO E EVIDENCIAÇÃO (ALMOXARIFE) -->
+            <div id="secaoAlmoxarife" class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-amber-400 flex items-center gap-2">
+                            <i class="fa-solid fa-boxes-packing"></i> Etapa 2. Evidenciação por Item (Almoxarife)
+                        </h2>
+                        <p class="text-xs text-slate-400">Confira a quantidade e tire até 5 fotos por item.</p>
+                    </div>
+                    <button onclick="concluirSeparacao()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition">
+                        <i class="fa-solid fa-check-double"></i> Concluir Separação (Ir p/ Embarque)
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="bg-slate-900/80 text-xs text-slate-400 uppercase border-b border-slate-700">
+                            <tr>
+                                <th class="p-3">Código (Y)</th>
+                                <th class="p-3">Descrição (Z)</th>
+                                <th class="p-3">Património/Ativo (AD)</th>
+                                <th class="p-3">Lote (AF)</th>
+                                <th class="p-3 text-center">Qtd ERP</th>
+                                <th class="p-3 text-center">Qtd Conferida</th>
+                                <th class="p-3">Observação / Avaria</th>
+                                <th class="p-3 text-center">Fotos Evidência (Até 5)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaItens" class="divide-y divide-slate-700/50">
+                            <tr>
+                                <td colspan="8" class="p-8 text-center text-slate-500">Nenhuma transferência carregada. Importe um ficheiro Excel acima.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PASSO 3: EMBARQUE E CARGA (SUPERVISOR / ENCARREGADO) -->
+            <div id="secaoSupervisor" class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-purple-400 flex items-center gap-2">
+                            <i class="fa-solid fa-truck-ramp-box"></i> Etapa 3. Liberação da Carga & Caminhão (Supervisor)
+                        </h2>
+                        <p class="text-xs text-slate-400">Registe as fotos do palete lacrado e do interior do caminhão antes de liberar.</p>
+                    </div>
+                    <button onclick="concluirEmbarque()" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition">
+                        <i class="fa-solid fa-truck-fast"></i> Autorizar e Concluir Embarque
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Fotos da Carga Embalada / Caminhão (Até 5 fotos):</label>
+                        <input type="file" id="fotosCarga" accept="image/*" multiple onchange="previewFotosCarga(this)" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white bg-slate-900 rounded-lg border border-slate-700">
+                        <div id="galeriaFotosCarga" class="flex flex-wrap gap-2 mt-3"></div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Observações do Envio / Previsão de Saída:</label>
+                        <textarea id="obsCarga" rows="3" placeholder="Ex: Carga posicionada no baú 02. Lacre nº 987654. Previsão de saída às 14h." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm focus:border-purple-500 outline-none"></textarea>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TELA 2: ADMINISTRAÇÃO & ROMANEIOS -->
+        <!-- ========================================== -->
+        <div id="telaADM" class="space-y-6 hidden">
+            
+            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+                    <h2 class="text-base font-bold text-emerald-400 flex items-center gap-2">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Etapa 4. Lançamento de Romaneio Assinado
+                    </h2>
+                    <span class="text-xs text-slate-400">Validação final administrativa</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Selecione a Transferência Embarcada:</label>
+                        <select id="selectTransferenciasADM" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Nº do Romaneio / Conhecimento:</label>
+                        <input type="text" id="numRomaneio" placeholder="Ex: ROM-88712" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Digitalização / Foto do Romaneio Assinado:</label>
+                        <input type="file" id="fotoRomaneio" accept="image/*" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white bg-slate-900 rounded-lg border border-slate-700">
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button onclick="finalizarRomaneio()" class="bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow transition">
+                        <i class="fa-solid fa-check"></i> Baixar e Concluir Romaneio
+                    </button>
+                </div>
+            </div>
+
+            <!-- HISTÓRICO DE AUDITORIAS -->
+            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md">
+                <h2 class="text-base font-bold text-slate-200 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Histórico de Transferências Registadas
+                </h2>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="bg-slate-900 text-xs text-slate-400 uppercase border-b border-slate-700">
+                            <tr>
+                                <th class="p-3">Data</th>
+                                <th class="p-3">Nº Transferência</th>
+                                <th class="p-3">Destino</th>
+                                <th class="p-3">Itens</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3">Romaneio</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaHistorico" class="divide-y divide-slate-700/50">
+                            <tr>
+                                <td colspan="6" class="p-6 text-center text-slate-500">Nenhum registo guardado até ao momento.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- MODAL CONFIGURAÇÃO GOOGLE SHEETS -->
+    <div id="modalConfig" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 class="font-bold text-lg text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Conexão Google Sheets (Nuvem)
+                </h3>
+                <button onclick="fecharModalConfig()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+
+            <p class="text-xs text-slate-300 leading-relaxed">
+                Para guardar o histórico e as fotos em nuvem sem risco de perda ao limpar a memória do navegador, cole abaixo a URL do seu <strong>Google Apps Script Web App</strong>.
+            </p>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">URL do Web App do Google Apps Script:</label>
+                <input type="text" id="urlGoogleScript" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs text-slate-200 outline-none focus:border-amber-400">
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t border-slate-700">
+                <button onclick="guardarConfigScript()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-lg text-xs shadow transition">
+                    Guardar Conexão
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DE LÓGICA E FUNCIONAMENTO -->
+    <script>
+        let transferenciaAtual = {
+            numero: '',
+            destino: '',
+            status: 'Pendente',
+            itens: [],
+            fotosCarga: [],
+            obsCarga: ''
+        };
+
+        let historicoTransferencias = JSON.parse(localStorage.getItem('sgt_historico') || '[]');
+
+        function mudarTela(tela) {
+            if(tela === 'operacao') {
+                document.getElementById('telaOperacao').classList.remove('hidden');
+                document.getElementById('telaADM').classList.add('hidden');
+                document.getElementById('btnNavOperacao').className = 'px-4 py-2 rounded-md text-sm font-semibold transition bg-blue-600 text-white shadow';
+                document.getElementById('btnNavADM').className = 'px-4 py-2 rounded-md text-sm font-semibold text-slate-400 hover:text-white transition';
+            } else {
+                document.getElementById('telaOperacao').classList.add('hidden');
+                document.getElementById('telaADM').classList.remove('hidden');
+                document.getElementById('btnNavADM').className = 'px-4 py-2 rounded-md text-sm font-semibold transition bg-blue-600 text-white shadow';
+                document.getElementById('btnNavOperacao').className = 'px-4 py-2 rounded-md text-sm font-semibold text-slate-400 hover:text-white transition';
+                atualizarTelaADM();
+            }
+        }
+
+        // LEITURA DO EXCEL (Mapeando colunas Y, Z, AD, AF)
+        function carregarExcel() {
+            const fileInput = document.getElementById('fileExcel');
+            const numTrf = document.getElementById('numTransferencia').value.trim();
+            const filial = document.getElementById('filialDestino').value.trim();
+
+            if (!fileInput.files.length || !numTrf || !filial) {
+                alert('Por favor, preencha o Número da Transferência, a Filial de Destino e selecione o ficheiro Excel.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
+
+                transferenciaAtual = {
+                    numero: numTrf,
+                    destino: filial,
+                    status: 'Aberto (Separação)',
+                    itens: [],
+                    fotosCarga: [],
+                    obsCarga: ''
+                };
+
+                // Pula o cabeçalho (linha 0) e percorre as linhas
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    if (row && row.length > 0) {
+                        // Colunas Y = 24, Z = 25, AD = 29, AF = 31 (índices base zero)
+                        const codigo = row[24] || row[0] || 'N/A';
+                        const descricao = row[25] || row[1] || 'N/A';
+                        const patrimonio = row[29] || row[2] || '-';
+                        const lote = row[31] || row[3] || '-';
+                        const qtdERP = row[4] || 1;
+
+                        transferenciaAtual.itens.push({
+                            codigo: codigo,
+                            descricao: descricao,
+                            patrimonio: patrimonio,
+                            lote: lote,
+                            qtdERP: qtdERP,
+                            qtdConferida: qtdERP,
+                            obs: '',
+                            fotos: []
+                        });
+                    }
+                }
+
+                renderizarTabelaItens();
+                alert(`Transferência ${numTrf} importada com sucesso! ${transferenciaAtual.itens.length} itens carregados.`);
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderizarTabelaItens() {
+            const tbody = document.getElementById('tabelaItens');
+            tbody.innerHTML = '';
+
+            transferenciaAtual.itens.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-700/30 transition';
+                tr.innerHTML = `
+                    <td class="p-3 font-mono font-bold text-blue-400">${item.codigo}</td>
+                    <td class="p-3">${item.descricao}</td>
+                    <td class="p-3 text-xs text-slate-400">${item.patrimonio}</td>
+                    <td class="p-3 text-xs text-slate-400">${item.lote}</td>
+                    <td class="p-3 text-center font-semibold">${item.qtdERP}</td>
+                    <td class="p-3 text-center">
+                        <input type="number" value="${item.qtdConferida}" onchange="atualizarQtd(${index}, this.value)" class="w-16 bg-slate-900 border border-slate-700 rounded text-center py-1 text-sm text-amber-400 font-bold focus:border-amber-400 outline-none">
+                    </td>
+                    <td class="p-3">
+                        <input type="text" value="${item.obs}" placeholder="Avaria / obs..." onchange="atualizarObs(${index}, this.value)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs outline-none">
+                    </td>
+                    <td class="p-3 text-center">
+                        <div class="flex flex-col items-center gap-1">
+                            <input type="file" accept="image/*" multiple id="fotoItem_${index}" onchange="adicionarFotoItem(${index}, this)" class="hidden">
+                            <button onclick="document.getElementById('fotoItem_${index}').click()" class="bg-slate-700 hover:bg-slate-600 text-xs px-2.5 py-1 rounded border border-slate-600 flex items-center gap-1">
+                                <i class="fa-solid fa-camera"></i> Fotos (${item.fotos.length}/5)
+                            </button>
+                            <div class="flex gap-1 mt-1 flex-wrap justify-center" id="thumbs_${index}">
+                                ${item.fotos.map((img, imgIdx) => `<img src="${img}" class="w-8 h-8 object-cover rounded border border-slate-600">`).join('')}
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function atualizarQtd(index, val) {
+            transferenciaAtual.itens[index].qtdConferida = Number(val);
+        }
+
+        function atualizarObs(index, val) {
+            transferenciaAtual.itens[index].obs = val;
+        }
+
+        function adicionarFotoItem(index, input) {
+            const files = Array.from(input.files);
+            const item = transferenciaAtual.itens[index];
+
+            files.forEach(file => {
+                if (item.fotos.length < 5) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        item.fotos.push(e.target.result);
+                        renderizarTabelaItens();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        function previewFotosCarga(input) {
+            const files = Array.from(input.files);
+            const galeria = document.getElementById('galeriaFotosCarga');
+            galeria.innerHTML = '';
+            transferenciaAtual.fotosCarga = [];
+
+            files.slice(0, 5).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    transferenciaAtual.fotosCarga.push(e.target.result);
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'w-16 h-16 object-cover rounded border border-purple-500 shadow';
+                    galeria.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function concluirSeparacao() {
+            if (!transferenciaAtual.numero) {
+                alert('Carregue uma transferência primeiro.');
+                return;
+            }
+            transferenciaAtual.status = 'Aguardando Embarque';
+            salvarHistoricoLocal();
+            alert(`Separação da Transferência ${transferenciaAtual.numero} concluída e bloqueada para o Almoxarife. Aguardando foto da carga do Supervisor.`);
+        }
+
+        function concluirEmbarque() {
+            if (!transferenciaAtual.numero) {
+                alert('Carregue uma transferência primeiro.');
+                return;
+            }
+            transferenciaAtual.obsCarga = document.getElementById('obsCarga').value;
+            transferenciaAtual.status = 'Embarcado / Aguardando Romaneio';
+            salvarHistoricoLocal();
+            alert(`Carga da Transferência ${transferenciaAtual.numero} autorizada e embarcada com sucesso! Envida para a Tela 2 (ADM).`);
+        }
+
+        function salvarHistoricoLocal() {
+            const idx = historicoTransferencias.findIndex(t => t.numero === transferenciaAtual.numero);
+            if (idx >= 0) {
+                historicoTransferencias[idx] = transferenciaAtual;
+            } else {
+                historicoTransferencias.push(transferenciaAtual);
+            }
+            localStorage.setItem('sgt_historico', JSON.stringify(historicoTransferencias));
+            enviarParaGoogleSheets(transferenciaAtual);
+        }
+
+        function atualizarTelaADM() {
+            const select = document.getElementById('selectTransferenciasADM');
+            select.innerHTML = '<option value="">Selecione...</option>';
+            
+            historicoTransferencias.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.numero;
+                opt.textContent = `${t.numero} - ${t.destino} (${t.status})`;
+                select.appendChild(opt);
+            });
+
+            const tbody = document.getElementById('tabelaHistorico');
+            tbody.innerHTML = '';
+            
+            historicoTransferencias.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-3 text-xs text-slate-400">${new Date().toLocaleDateString()}</td>
+                    <td class="p-3 font-bold text-blue-400">${t.numero}</td>
+                    <td class="p-3">${t.destino}</td>
+                    <td class="p-3">${t.itens.length} itens</td>
+                    <td class="p-3"><span class="badge-status bg-amber-500/20 text-amber-400 border border-amber-500/30">${t.status}</span></td>
+                    <td class="p-3 text-xs text-slate-400">${t.romaneio || 'Pendente'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function finalizarRomaneio() {
+            const numTrf = document.getElementById('selectTransferenciasADM').value;
+            const numRom = document.getElementById('numRomaneio').value.trim();
+
+            if (!numTrf || !numRom) {
+                alert('Selecione a transferência e informe o número do romaneio.');
+                return;
+            }
+
+            const trf = historicoTransferencias.find(t => t.numero === numTrf);
+            if (trf) {
+                trf.romaneio = numRom;
+                trf.status = 'Concluído & Entregue';
+                localStorage.setItem('sgt_historico', JSON.stringify(historicoTransferencias));
+                atualizarTelaADM();
+                alert(`Romaneio ${numRom} anexado com sucesso à Transferência ${numTrf}!`);
+            }
+        }
+
+        function abrirModalConfig() {
+            document.getElementById('urlGoogleScript').value = localStorage.getItem('sgt_script_url') || '';
+            document.getElementById('modalConfig').classList.remove('hidden');
+        }
+
+        function fecharModalConfig() {
+            document.getElementById('modalConfig').classList.add('hidden');
+        }
+
+        function guardarConfigScript() {
+            const url = document.getElementById('urlGoogleScript').value.trim();
+            localStorage.setItem('sgt_script_url', url);
+            fecharModalConfig();
+            alert('URL do Google Sheets salva com sucesso!');
+        }
+
+        function enviarParaGoogleSheets(dados) {
+            const url = localStorage.getItem('sgt_script_url');
+            if (!url) return;
+
+            fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados)
+            }).then(() => {
+                console.log('Dados enviados para o Google Sheets.');
+            }).catch(err => console.error('Erro ao enviar:', err));
+        }
+    </script>
+</body>
+</html>
