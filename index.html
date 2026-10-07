@@ -22,7 +22,7 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
 
     <!-- ========================================== -->
-    <!-- TELA DE LOGIN (ESTILO IMAGEM 2) -->
+    <!-- TELA DE LOGIN (CAMPOS VAZIOS POR PADRÃO) -->
     <!-- ========================================== -->
     <div id="telaLogin" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4">
         <div class="max-w-md w-full space-y-4">
@@ -35,13 +35,13 @@
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-slate-300 mb-1.5">CPF ou E-mail</label>
-                    <input type="text" id="loginUser" placeholder="admin@tel.com.br" value="admin@tel.com.br" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none focus:border-emerald-500 font-medium">
+                    <input type="text" id="loginUser" placeholder="Digite seu CPF ou E-mail" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none focus:border-emerald-500 font-medium">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-300 mb-1.5">Senha</label>
                     <div class="relative">
-                        <input type="password" id="loginPass" placeholder="••••••" value="123" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none focus:border-emerald-500 font-medium pr-10">
+                        <input type="password" id="loginPass" placeholder="Digite sua senha" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none focus:border-emerald-500 font-medium pr-10">
                         <button type="button" onclick="alternarVisibilidadeSenha('loginPass', 'iconEyeLogin')" class="absolute right-3 top-3 text-slate-500 hover:text-slate-300">
                             <i id="iconEyeLogin" class="fa-regular fa-eye"></i>
                         </button>
@@ -62,7 +62,7 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- TELA DE CADASTRO (ESTILO IMAGEM 3) -->
+    <!-- TELA DE CADASTRO DE COLABORADOR -->
     <!-- ========================================== -->
     <div id="telaCadastro" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 hidden">
         <div class="max-w-md w-full space-y-4">
@@ -362,10 +362,9 @@
 
     <!-- SCRIPT DE LÓGICA E FUNCIONAMENTO -->
     <script>
-        // USUÁRIOS REGISTRADOS NO SISTEMA (ADMIN PADRÃO)
         let usuariosCadastrados = JSON.parse(localStorage.getItem('sgt_usuarios_db') || '[]');
         
-        // Garante o usuário admin padrão se a lista estiver vazia
+        // Garante a conta admin padrão no banco de dados local
         if (!usuariosCadastrados.some(u => u.user === 'admin@tel.com.br')) {
             usuariosCadastrados.push({
                 nome: 'Administrador',
@@ -416,12 +415,19 @@
             const user = document.getElementById('loginUser').value.trim().toLowerCase();
             const pass = document.getElementById('loginPass').value.trim();
 
-            const encontrado = usuariosCadastrados.find(u => u.user.toLowerCase() === user && u.pass === pass);
+            if (!user || !pass) {
+                alert('Informe seu e-mail/CPF e senha.');
+                return;
+            }
+
+            const encontrado = usuariosCadastrados.find(u => (u.user.toLowerCase() === user || u.cpf === user) && u.pass === pass);
 
             if (encontrado) {
                 usuarioAtivo = encontrado;
                 localStorage.setItem('sgt_usuario_ativo', JSON.stringify(usuarioAtivo));
                 document.getElementById('telaLogin').classList.add('hidden');
+                document.getElementById('loginUser').value = '';
+                document.getElementById('loginPass').value = '';
                 atualizarHeaderUsuario();
             } else {
                 alert('Usuário/E-mail ou Senha incorretos!');
@@ -472,15 +478,23 @@
             usuariosCadastrados.push(novoUsuario);
             localStorage.setItem('sgt_usuarios_db', JSON.stringify(usuariosCadastrados));
 
-            alert('Cadastro efetuado com sucesso! Faça login para continuar.');
-            document.getElementById('loginUser').value = email;
-            document.getElementById('loginPass').value = pass;
+            alert('Cadastro efetuado com sucesso! Faça login com a sua conta.');
+            
+            // Limpa os campos de cadastro
+            document.getElementById('cadNome').value = '';
+            document.getElementById('cadCPF').value = '';
+            document.getElementById('cadEmail').value = '';
+            document.getElementById('cadPass').value = '';
+            document.getElementById('cadPassConf').value = '';
+
             exibirTelaLogin();
         }
 
         function sairSistema() {
             localStorage.removeItem('sgt_usuario_ativo');
             usuarioAtivo = null;
+            document.getElementById('loginUser').value = '';
+            document.getElementById('loginPass').value = '';
             document.getElementById('telaLogin').classList.remove('hidden');
         }
 
