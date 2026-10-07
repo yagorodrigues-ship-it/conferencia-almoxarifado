@@ -65,7 +65,7 @@
                     <h2 class="text-base font-bold text-blue-400 flex items-center gap-2">
                         <i class="fa-solid fa-file-import"></i> Etapa 1. Importar Transferência do ERP
                     </h2>
-                    <span class="text-xs text-slate-400">Colunas padrão: B/C (Origem), D/E (Destino), Y (Código), Z (Descrição), AD (Património), AF (Lote)</span>
+                    <span class="text-xs text-slate-400">Leitura Exata: Y (Código), Z (Descrição), AC (Qtd ERP), AD (Patrimônio), AF (Lote)</span>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
@@ -116,7 +116,7 @@
                                 <th class="p-3">Descrição (Z)</th>
                                 <th class="p-3">Património/Ativo (AD)</th>
                                 <th class="p-3">Lote (AF)</th>
-                                <th class="p-3 text-center">Qtd ERP</th>
+                                <th class="p-3 text-center">Qtd ERP (AC)</th>
                                 <th class="p-3 text-center">Qtd Conferida</th>
                                 <th class="p-3">Observação / Avaria</th>
                                 <th class="p-3 text-center">Fotos Evidência (Até 5)</th>
@@ -186,7 +186,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-300 mb-1">Digitalização / Foto do Romaneio Assinado:</label>
-                        <input type="file" id="fotoRomaneio" accept="image/*" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white bg-slate-900 rounded-lg border border-slate-700">
+                        <input type="file" id="fotoRomaneio" accept="image/*" onchange="previewFotoRomaneio(this)" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white bg-slate-900 rounded-lg border border-slate-700">
                     </div>
                 </div>
 
@@ -240,7 +240,7 @@
             </div>
 
             <p class="text-xs text-slate-300 leading-relaxed">
-                Para salvar tudo em nuvem e não perder dados ao limpar o cache, crie uma planilha no Google Sheets, acesse <strong>Extensões > Apps Script</strong>, cole o código do Apps Script e publique como Web App.
+                URL do Web App do seu Google Apps Script para salvamento automático no Google Sheets e Google Drive.
             </p>
 
             <div>
@@ -265,7 +265,9 @@
             status: 'Pendente',
             itens: [],
             fotosCarga: [],
-            obsCarga: ''
+            obsCarga: '',
+            romaneio: '',
+            fotoRomaneio: ''
         };
 
         let historicoTransferencias = JSON.parse(localStorage.getItem('sgt_historico') || '[]');
@@ -294,7 +296,7 @@
             let nomeSemExtensao = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
             document.getElementById('numTransferencia').value = nomeSemExtensao;
 
-            // 2. Extrai Origem (Colunas B + C) e Destino (Colunas D + E) da planilha
+            // 2. Extrai Origem e Destino
             const reader = new FileReader();
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
@@ -303,29 +305,25 @@
                 const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
 
                 if (jsonData.length > 1) {
-                    const row = jsonData[1]; // Linha 1 de dados (após o cabeçalho)
+                    const row = jsonData[1];
                     
-                    // Coluna B (índice 1) + Coluna C (índice 2) -> ORIGEM
+                    // Coluna B (índice 1) + C (índice 2) -> ORIGEM
                     const codOrigem = row[1] !== undefined ? String(row[1]).trim() : '';
                     const descOrigem = row[2] !== undefined ? String(row[2]).trim() : '';
                     let origemCompleta = `${codOrigem} - ${descOrigem}`.replace(/^ - |- $/g, '').trim();
-                    if (origemCompleta) {
-                        document.getElementById('filialOrigem').value = origemCompleta;
-                    }
+                    if (origemCompleta) document.getElementById('filialOrigem').value = origemCompleta;
 
-                    // Coluna D (índice 3) + Coluna E (índice 4) -> DESTINO
+                    // Coluna D (índice 3) + E (índice 4) -> DESTINO
                     const codDestino = row[3] !== undefined ? String(row[3]).trim() : '';
                     const descDestino = row[4] !== undefined ? String(row[4]).trim() : '';
                     let destinoCompleto = `${codDestino} - ${descDestino}`.replace(/^ - |- $/g, '').trim();
-                    if (destinoCompleto) {
-                        document.getElementById('filialDestino').value = destinoCompleto;
-                    }
+                    if (destinoCompleto) document.getElementById('filialDestino').value = destinoCompleto;
                 }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // LEITURA DO EXCEL (Mapeando B/C, D/E, Y, Z, AD, AF)
+        // LEITURA DO EXCEL (Mapeando com Precisão: Y, Z, AC, AD, AF)
         function carregarExcel() {
             const fileInput = document.getElementById('fileExcel');
             
@@ -358,30 +356,57 @@
                     status: 'Aberto (Separação)',
                     itens: [],
                     fotosCarga: [],
-                    obsCarga: ''
+                    obsCarga: '',
+                    romaneio: '',
+                    fotoRomaneio: ''
                 };
 
-                // Percorre a planilha a partir da linha 1 (ignora o cabeçalho)
+                if (jsonData.length <= 1) {
+                    alert('O arquivo selecionado está vazio ou sem dados.');
+                    return;
+                }
+
+                // Identificação de colunas por cabeçalho (Linha 0)
+                const cabecalho = jsonData[0] || [];
+                let idxCod = 24;  // Y
+                let idxDesc = 25; // Z
+                let idxQtd = 28;  // AC (QTDE_PRODUTO)
+                let idxPat = 29;  // AD (PATRIMONIO)
+                let idxLote = 31; // AF (LOTE)
+
+                cabecalho.forEach((cell, idx) => {
+                    if (cell && typeof cell === 'string') {
+                        const cellUpper = cell.toUpperCase().trim();
+                        if (cellUpper.includes('CODIGO_PRODUTO') || cellUpper === 'CODIGO') idxCod = idx;
+                        if (cellUpper.includes('DESCRICAO_PRODUTO') || cellUpper === 'DESCRICAO') idxDesc = idx;
+                        if (cellUpper === 'QTDE_PRODUTO' || cellUpper === 'QTDE_ORIGEM' || cellUpper.includes('QTDE')) idxQtd = idx;
+                        if (cellUpper.includes('PATRIMONIO') || cellUpper === 'ATIVO') idxPat = idx;
+                        if (cellUpper.includes('LOTE')) idxLote = idx;
+                    }
+                });
+
+                // Percorre as linhas a partir do índice 1
                 for (let i = 1; i < jsonData.length; i++) {
                     const row = jsonData[i];
                     if (row && row.length > 0) {
-                        // Colunas Y = 24, Z = 25, AD = 29, AF = 31 (índices base zero)
-                        const codigo = row[24] || row[0] || 'N/A';
-                        const descricao = row[25] || row[1] || 'N/A';
-                        const patrimonio = row[29] || row[2] || '-';
-                        const lote = row[31] || row[3] || '-';
-                        const qtdERP = row[5] || row[4] || 1;
+                        const codigo = row[idxCod] !== undefined ? String(row[idxCod]).trim() : '-';
+                        const descricao = row[idxDesc] !== undefined ? String(row[idxDesc]).trim() : '-';
+                        const patrimonio = (row[idxPat] !== undefined && row[idxPat] !== null) ? String(row[idxPat]).trim() : '-';
+                        const lote = (row[idxLote] !== undefined && row[idxLote] !== null) ? String(row[idxLote]).trim() : '-';
+                        const qtdERP = (row[idxQtd] !== undefined && !isNaN(row[idxQtd])) ? Number(row[idxQtd]) : 1;
 
-                        transferenciaAtual.itens.push({
-                            codigo: codigo,
-                            descricao: descricao,
-                            patrimonio: patrimonio,
-                            lote: lote,
-                            qtdERP: qtdERP,
-                            qtdConferida: qtdERP,
-                            obs: '',
-                            fotos: []
-                        });
+                        if (codigo !== '-' || descricao !== '-') {
+                            transferenciaAtual.itens.push({
+                                codigo: codigo,
+                                descricao: descricao,
+                                patrimonio: patrimonio || '-',
+                                lote: lote || '-',
+                                qtdERP: qtdERP,
+                                qtdConferida: qtdERP,
+                                obs: '',
+                                fotos: []
+                            });
+                        }
                     }
                 }
 
@@ -402,9 +427,9 @@
                 tr.innerHTML = `
                     <td class="p-3 font-mono font-bold text-blue-400">${item.codigo}</td>
                     <td class="p-3">${item.descricao}</td>
-                    <td class="p-3 text-xs text-slate-400">${item.patrimonio}</td>
-                    <td class="p-3 text-xs text-slate-400">${item.lote}</td>
-                    <td class="p-3 text-center font-semibold">${item.qtdERP}</td>
+                    <td class="p-3 text-xs text-slate-300 font-semibold">${item.patrimonio}</td>
+                    <td class="p-3 text-xs text-slate-300 font-semibold">${item.lote}</td>
+                    <td class="p-3 text-center font-bold text-emerald-400">${item.qtdERP}</td>
                     <td class="p-3 text-center">
                         <input type="number" value="${item.qtdConferida}" onchange="atualizarQtd(${index}, this.value)" class="w-16 bg-slate-900 border border-slate-700 rounded text-center py-1 text-sm text-amber-400 font-bold focus:border-amber-400 outline-none">
                     </td>
@@ -470,6 +495,16 @@
             });
         }
 
+        function previewFotoRomaneio(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    transferenciaAtual.fotoRomaneio = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
         function concluirSeparacao() {
             if (!transferenciaAtual.numero) {
                 alert('Carregue uma transferência primeiro.');
@@ -477,7 +512,7 @@
             }
             transferenciaAtual.status = 'Aguardando Embarque';
             salvarHistoricoLocal();
-            alert(`Separação da Transferência ${transferenciaAtual.numero} concluída. Dados salvos para o Supervisor/Encarregado.`);
+            alert(`Separação da Transferência ${transferenciaAtual.numero} concluída com sucesso!`);
         }
 
         function concluirEmbarque() {
@@ -488,7 +523,7 @@
             transferenciaAtual.obsCarga = document.getElementById('obsCarga').value;
             transferenciaAtual.status = 'Embarcado / Aguardando Romaneio';
             salvarHistoricoLocal();
-            alert(`Carga da Transferência ${transferenciaAtual.numero} autorizada e embarcada com sucesso! Enviada para a Tela 2 (ADM).`);
+            alert(`Carga da Transferência ${transferenciaAtual.numero} autorizada e embarcada com sucesso!`);
         }
 
         function salvarHistoricoLocal() {
@@ -544,8 +579,12 @@
             if (trf) {
                 trf.romaneio = numRom;
                 trf.status = 'Concluído & Entregue';
+                if (transferenciaAtual.fotoRomaneio) {
+                    trf.fotoRomaneio = transferenciaAtual.fotoRomaneio;
+                }
                 localStorage.setItem('sgt_historico', JSON.stringify(historicoTransferencias));
                 atualizarTelaADM();
+                enviarParaGoogleSheets(trf);
                 alert(`Romaneio ${numRom} anexado com sucesso à Transferência ${numTrf}!`);
             }
         }
