@@ -65,7 +65,7 @@
                     <h2 class="text-base font-bold text-blue-400 flex items-center gap-2">
                         <i class="fa-solid fa-file-import"></i> Etapa 1. Importar Transferência do ERP
                     </h2>
-                    <span class="text-xs text-slate-400">Leitura Exata: Y (Código), Z (Descrição), AC (Qtd ERP), AD (Patrimônio), AF (Lote)</span>
+                    <span class="text-xs text-slate-400">Mapeamento Fixo: Y (Código), Z (Descrição), AC (Qtd ERP), AD (Patrimônio), AF (Lote)</span>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
@@ -292,11 +292,9 @@
             if (!input.files.length) return;
             const file = input.files[0];
 
-            // 1. Puxa o número da transferência do nome do arquivo (ex: 1911549.xlsx -> 1911549)
             let nomeSemExtensao = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
             document.getElementById('numTransferencia').value = nomeSemExtensao;
 
-            // 2. Extrai Origem e Destino
             const reader = new FileReader();
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
@@ -323,7 +321,7 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // LEITURA DO EXCEL (Mapeando com Precisão: Y, Z, AC, AD, AF)
+        // LEITURA DO EXCEL (Mapeando Estritamente por Letra da Coluna)
         function carregarExcel() {
             const fileInput = document.getElementById('fileExcel');
             
@@ -366,41 +364,39 @@
                     return;
                 }
 
-                // Identificação de colunas por cabeçalho (Linha 0)
-                const cabecalho = jsonData[0] || [];
-                let idxCod = 24;  // Y
-                let idxDesc = 25; // Z
-                let idxQtd = 28;  // AC (QTDE_PRODUTO)
-                let idxPat = 29;  // AD (PATRIMONIO)
-                let idxLote = 31; // AF (LOTE)
+                // MAPEAMENTO FIXO E EXATO BASEADO NAS LETRAS DAS COLUNAS DA SUA PLANILHA:
+                // Coluna Y  = índice 24 (CODIGO_PRODUTO)
+                // Coluna Z  = índice 25 (DESCRICAO_PRODUTO)
+                // Coluna AC = índice 28 (QTDE_PRODUTO)
+                // Coluna AD = índice 29 (PATRIMONIO)
+                // Coluna AF = índice 31 (LOTE)
+                const idxCod  = 24;
+                const idxDesc = 25;
+                const idxQtd  = 28;
+                const idxPat  = 29;
+                const idxLote = 31;
 
-                cabecalho.forEach((cell, idx) => {
-                    if (cell && typeof cell === 'string') {
-                        const cellUpper = cell.toUpperCase().trim();
-                        if (cellUpper.includes('CODIGO_PRODUTO') || cellUpper === 'CODIGO') idxCod = idx;
-                        if (cellUpper.includes('DESCRICAO_PRODUTO') || cellUpper === 'DESCRICAO') idxDesc = idx;
-                        if (cellUpper === 'QTDE_PRODUTO' || cellUpper === 'QTDE_ORIGEM' || cellUpper.includes('QTDE')) idxQtd = idx;
-                        if (cellUpper.includes('PATRIMONIO') || cellUpper === 'ATIVO') idxPat = idx;
-                        if (cellUpper.includes('LOTE')) idxLote = idx;
-                    }
-                });
-
-                // Percorre as linhas a partir do índice 1
+                // Percorre as linhas do Excel ignorando o cabeçalho (linha 0)
                 for (let i = 1; i < jsonData.length; i++) {
                     const row = jsonData[i];
                     if (row && row.length > 0) {
                         const codigo = row[idxCod] !== undefined ? String(row[idxCod]).trim() : '-';
                         const descricao = row[idxDesc] !== undefined ? String(row[idxDesc]).trim() : '-';
-                        const patrimonio = (row[idxPat] !== undefined && row[idxPat] !== null) ? String(row[idxPat]).trim() : '-';
-                        const lote = (row[idxLote] !== undefined && row[idxLote] !== null) ? String(row[idxLote]).trim() : '-';
-                        const qtdERP = (row[idxQtd] !== undefined && !isNaN(row[idxQtd])) ? Number(row[idxQtd]) : 1;
+                        const patrimonio = (row[idxPat] !== undefined && row[idxPat] !== null && String(row[idxPat]).trim() !== '') ? String(row[idxPat]).trim() : '-';
+                        const lote = (row[idxLote] !== undefined && row[idxLote] !== null && String(row[idxLote]).trim() !== '') ? String(row[idxLote]).trim() : '-';
+                        
+                        let rawQtd = row[idxQtd];
+                        let qtdERP = 1;
+                        if (rawQtd !== undefined && rawQtd !== null && !isNaN(rawQtd) && Number(rawQtd) > 0) {
+                            qtdERP = Number(rawQtd);
+                        }
 
                         if (codigo !== '-' || descricao !== '-') {
                             transferenciaAtual.itens.push({
                                 codigo: codigo,
                                 descricao: descricao,
-                                patrimonio: patrimonio || '-',
-                                lote: lote || '-',
+                                patrimonio: patrimonio,
+                                lote: lote,
                                 qtdERP: qtdERP,
                                 qtdConferida: qtdERP,
                                 obs: '',
@@ -411,7 +407,7 @@
                 }
 
                 renderizarTabelaItens();
-                alert(`Transferência ${transferenciaAtual.numero} iniciada com sucesso! ${transferenciaAtual.itens.length} itens carregados.`);
+                alert(`Transferência ${transferenciaAtual.numero} carregada com sucesso! ${transferenciaAtual.itens.length} itens extraídos.`);
             };
 
             reader.readAsArrayBuffer(file);
