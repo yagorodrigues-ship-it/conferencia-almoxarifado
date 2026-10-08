@@ -173,7 +173,7 @@
                     <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
                         <i class="fa-solid fa-file-import"></i> Etapa 1. Importar Transferência do ERP (Almoxarife)
                     </h2>
-                    <span class="text-xs text-slate-400 font-mono bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800">
+                    <span id="indicadorRascunho" class="text-xs font-mono bg-slate-950 text-slate-400 px-2.5 py-1 rounded-md border border-slate-800">
                         Nº TRF Lida da Coluna A (CODIGO)
                     </span>
                 </div>
@@ -185,15 +185,15 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº Transferência / Guia:</label>
-                        <input type="text" id="numTransferenciaPatio" placeholder="Auto lido da Coluna CODIGO" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm focus:border-emerald-500 outline-none font-bold text-emerald-400">
+                        <input type="text" id="numTransferenciaPatio" onchange="salvarRascunhoAuto()" placeholder="Auto lido da Coluna CODIGO" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm focus:border-emerald-500 outline-none font-bold text-emerald-400">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-300 mb-1.5">Origem (Colunas B + C):</label>
-                        <input type="text" id="filialOrigem" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-slate-200 font-medium">
+                        <input type="text" id="filialOrigem" onchange="salvarRascunhoAuto()" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-slate-200 font-medium">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-300 mb-1.5">Destino (Colunas D + E):</label>
-                        <input type="text" id="filialDestino" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-emerald-300 font-semibold">
+                        <input type="text" id="filialDestino" onchange="salvarRascunhoAuto()" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-emerald-300 font-semibold">
                     </div>
                 </div>
 
@@ -210,7 +210,7 @@
                         <h2 class="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
                             <i class="fa-solid fa-boxes-packing"></i> Etapa 2. Evidenciação por Item (Fotos do Material)
                         </h2>
-                        <p class="text-xs text-slate-400 mt-0.5">Confira a quantidade e tire até 5 fotos por item antes de enviar para a expedição.</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Confira a quantidade e tire até 5 fotos por item. Salvo em rascunho automaticamente.</p>
                     </div>
                     <button onclick="concluirSeparacao()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-md shadow-emerald-900/20">
                         <i class="fa-solid fa-check-double"></i> Concluir Separação (Enviar p/ Nuvem)
@@ -377,6 +377,7 @@
             if (usuarioAtivo && usuarioAtivo.nome) {
                 document.getElementById('telaLogin').classList.add('hidden');
                 atualizarHeaderUsuario();
+                restaurarRascunhoSeExistir();
             } else {
                 document.getElementById('telaLogin').classList.remove('hidden');
             }
@@ -412,6 +413,7 @@
                 document.getElementById('loginUser').value = '';
                 document.getElementById('loginPass').value = '';
                 atualizarHeaderUsuario();
+                restaurarRascunhoSeExistir();
             } else {
                 alert('Usuário/E-mail ou Senha incorretos!');
             }
@@ -508,6 +510,44 @@
             }
         }
 
+        // AUTO-SAVE E RECUPERAÇÃO DE RASCUNHO
+        function salvarRascunhoAuto() {
+            if (transferenciaAtual && transferenciaAtual.itens && transferenciaAtual.itens.length > 0) {
+                transferenciaAtual.numero = document.getElementById('numTransferenciaPatio').value.trim();
+                transferenciaAtual.origem = document.getElementById('filialOrigem').value.trim();
+                transferenciaAtual.destino = document.getElementById('filialDestino').value.trim();
+
+                localStorage.setItem('sgt_rascunho_patio', JSON.stringify(transferenciaAtual));
+                document.getElementById('indicadorRascunho').innerHTML = '<i class="fa-solid fa-floppy-disk text-emerald-400"></i> Rascunho Salvo Auto';
+            }
+        }
+
+        function restaurarRascunhoSeExistir() {
+            const rascunho = localStorage.getItem('sgt_rascunho_patio');
+            if (rascunho) {
+                try {
+                    const dados = JSON.parse(rascunho);
+                    if (dados && dados.itens && dados.itens.length > 0) {
+                        if (confirm(`Existe uma transferência pendente (Nº ${dados.numero || 'Sem Nº'}) salva em rascunho. Deseja restaurar as fotos e conferências?`)) {
+                            transferenciaAtual = dados;
+                            document.getElementById('numTransferenciaPatio').value = dados.numero || '';
+                            document.getElementById('filialOrigem').value = dados.origem || '';
+                            document.getElementById('filialDestino').value = dados.destino || '';
+                            renderizarTabelaItens();
+                            document.getElementById('indicadorRascunho').innerHTML = '<i class="fa-solid fa-clock-rotate-left text-amber-400"></i> Rascunho Restaurado';
+                        }
+                    }
+                } catch(e) {
+                    console.error('Erro ao restaurar rascunho:', e);
+                }
+            }
+        }
+
+        function limparRascunhoPatio() {
+            localStorage.removeItem('sgt_rascunho_patio');
+            document.getElementById('indicadorRascunho').innerHTML = 'Nº TRF Lida da Coluna A (CODIGO)';
+        }
+
         function detectarDadosExcel(input) {
             if (!input.files.length) return;
             const file = input.files[0];
@@ -540,6 +580,8 @@
                     const descDestino = row1[4] !== undefined ? String(row1[4]).trim() : '';
                     let destinoCompleto = `${codDestino} - ${descDestino}`.replace(/^ - |- $/g, '').trim();
                     if (destinoCompleto) document.getElementById('filialDestino').value = destinoCompleto;
+
+                    salvarRascunhoAuto();
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -621,6 +663,7 @@
                 }
 
                 renderizarTabelaItens();
+                salvarRascunhoAuto();
                 alert(`Transferência Nº ${transferenciaAtual.numero} carregada! ${transferenciaAtual.itens.length} itens extraídos.`);
             };
 
@@ -664,10 +707,12 @@
 
         function atualizarQtd(index, val) {
             transferenciaAtual.itens[index].qtdConferida = Number(val);
+            salvarRascunhoAuto();
         }
 
         function atualizarObs(index, val) {
             transferenciaAtual.itens[index].obs = val;
+            salvarRascunhoAuto();
         }
 
         function adicionarFotoItem(index, input) {
@@ -680,6 +725,7 @@
                     reader.onload = function(e) {
                         item.fotos.push(e.target.result);
                         renderizarTabelaItens();
+                        salvarRascunhoAuto();
                     };
                     reader.readAsDataURL(file);
                 }
@@ -726,6 +772,7 @@
             transferenciaAtual.operadorPatio = usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador';
             
             enviarParaGoogleSheets(transferenciaAtual);
+            limparRascunhoPatio();
             alert(`Separação da Transferência Nº ${numTrf} registrada por ${transferenciaAtual.operadorPatio}!`);
         }
 
