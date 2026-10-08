@@ -21,9 +21,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
 
-    <!-- ========================================== -->
-    <!-- TELA DE LOGIN (CAMPOS VAZIOS POR PADRÃO) -->
-    <!-- ========================================== -->
+    <!-- TELA DE LOGIN -->
     <div id="telaLogin" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4">
         <div class="max-w-md w-full space-y-4">
             <div class="text-center space-y-2 mb-6">
@@ -61,9 +59,7 @@
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- TELA DE CADASTRO DE COLABORADOR -->
-    <!-- ========================================== -->
+    <!-- TELA DE CADASTRO -->
     <div id="telaCadastro" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 hidden">
         <div class="max-w-md w-full space-y-4">
             <div class="text-center mb-4">
@@ -169,19 +165,16 @@
     <!-- CONTAINER PRINCIPAL -->
     <main class="max-w-7xl mx-auto p-4">
 
-        <!-- ========================================== -->
         <!-- TELA 1: PÁTIO / ALMOXARIFE -->
-        <!-- ========================================== -->
         <div id="telaPatio" class="space-y-6">
 
-            <!-- IMPORTAÇÃO DO EXCEL DO ERP -->
             <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
                 <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
                     <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
                         <i class="fa-solid fa-file-import"></i> Etapa 1. Importar Transferência do ERP (Almoxarife)
                     </h2>
                     <span class="text-xs text-slate-400 font-mono bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800">
-                        Leitura: Y (Código), Z (Descrição), AC (Qtd ERP), AD (Patrimônio), AF (Lote)
+                        Nº TRF Lida da Coluna A (CODIGO)
                     </span>
                 </div>
 
@@ -192,7 +185,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº Transferência / Guia:</label>
-                        <input type="text" id="numTransferenciaPatio" placeholder="Auto pelo arquivo" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm focus:border-emerald-500 outline-none font-bold text-emerald-400">
+                        <input type="text" id="numTransferenciaPatio" placeholder="Auto lido da Coluna CODIGO" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm focus:border-emerald-500 outline-none font-bold text-emerald-400">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-300 mb-1.5">Origem (Colunas B + C):</label>
@@ -211,7 +204,6 @@
                 </div>
             </div>
 
-            <!-- TABELA DE ITENS E FOTOS DO ALMOXARIFE -->
             <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
                 <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
                     <div>
@@ -250,11 +242,8 @@
 
         </div>
 
-        <!-- ========================================== -->
-        <!-- TELA 2: EMBARQUE / ENCARREGADO -->
-        <!-- ========================================== -->
+        <!-- TELA 2: EMBARQUE -->
         <div id="telaEmbarque" class="space-y-6 hidden">
-            
             <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
                 <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
                     <div>
@@ -268,7 +257,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div class="md:col-span-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
                         <label class="block text-xs font-semibold text-emerald-400 mb-1.5">Nº da Transferência / Guia:</label>
-                        <input type="text" id="numTransferenciaEmbarque" placeholder="Digite o Nº da Transferência (Ex: 1911556)" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-base font-bold text-emerald-400 outline-none focus:border-emerald-500">
+                        <input type="text" id="numTransferenciaEmbarque" placeholder="Digite o Nº da Transferência (Ex: 1916447)" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-base font-bold text-emerald-400 outline-none focus:border-emerald-500">
                     </div>
 
                     <div>
@@ -289,14 +278,10 @@
                     </button>
                 </div>
             </div>
-
         </div>
 
-        <!-- ========================================== -->
-        <!-- TELA 3: ROMANEIO / ADM -->
-        <!-- ========================================== -->
+        <!-- TELA 3: ROMANEIO -->
         <div id="telaRomaneio" class="space-y-6 hidden">
-            
             <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
                 <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
                     <div>
@@ -310,7 +295,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
                         <label class="block text-xs font-semibold text-emerald-400 mb-1.5">Nº da Transferência / Guia:</label>
-                        <input type="text" id="numTransferenciaRomaneio" placeholder="Ex: 1911556" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-emerald-400 font-bold outline-none focus:border-emerald-500">
+                        <input type="text" id="numTransferenciaRomaneio" placeholder="Ex: 1916447" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-emerald-400 font-bold outline-none focus:border-emerald-500">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº do Romaneio / Conhecimento:</label>
@@ -328,7 +313,6 @@
                     </button>
                 </div>
             </div>
-
         </div>
 
     </main>
@@ -364,7 +348,6 @@
     <script>
         let usuariosCadastrados = JSON.parse(localStorage.getItem('sgt_usuarios_db') || '[]');
         
-        // Garante a conta admin padrão no banco de dados local
         if (!usuariosCadastrados.some(u => u.user === 'admin@tel.com.br')) {
             usuariosCadastrados.push({
                 nome: 'Administrador',
@@ -480,7 +463,6 @@
 
             alert('Cadastro efetuado com sucesso! Faça login com a sua conta.');
             
-            // Limpa os campos de cadastro
             document.getElementById('cadNome').value = '';
             document.getElementById('cadCPF').value = '';
             document.getElementById('cadEmail').value = '';
@@ -530,9 +512,6 @@
             if (!input.files.length) return;
             const file = input.files[0];
 
-            let nomeSemExtensao = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
-            document.getElementById('numTransferenciaPatio').value = nomeSemExtensao;
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
@@ -541,14 +520,24 @@
                 const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
 
                 if (jsonData.length > 1) {
-                    const row = jsonData[1];
-                    const codOrigem = row[1] !== undefined ? String(row[1]).trim() : '';
-                    const descOrigem = row[2] !== undefined ? String(row[2]).trim() : '';
+                    const row1 = jsonData[1];
+                    let rawTrf = row1[0] !== undefined ? String(row1[0]).trim() : '';
+                    let numLimpo = rawTrf.split(',')[0].replace(/\D/g, '');
+
+                    if (numLimpo) {
+                        document.getElementById('numTransferenciaPatio').value = numLimpo;
+                    } else {
+                        let nomeSemExtensao = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                        document.getElementById('numTransferenciaPatio').value = nomeSemExtensao;
+                    }
+
+                    const codOrigem = row1[1] !== undefined ? String(row1[1]).trim() : '';
+                    const descOrigem = row1[2] !== undefined ? String(row1[2]).trim() : '';
                     let origemCompleta = `${codOrigem} - ${descOrigem}`.replace(/^ - |- $/g, '').trim();
                     if (origemCompleta) document.getElementById('filialOrigem').value = origemCompleta;
 
-                    const codDestino = row[3] !== undefined ? String(row[3]).trim() : '';
-                    const descDestino = row[4] !== undefined ? String(row[4]).trim() : '';
+                    const codDestino = row1[3] !== undefined ? String(row1[3]).trim() : '';
+                    const descDestino = row1[4] !== undefined ? String(row1[4]).trim() : '';
                     let destinoCompleto = `${codDestino} - ${descDestino}`.replace(/^ - |- $/g, '').trim();
                     if (destinoCompleto) document.getElementById('filialDestino').value = destinoCompleto;
                 }
@@ -568,17 +557,21 @@
             let origem = document.getElementById('filialOrigem').value.trim();
             let filial = document.getElementById('filialDestino').value.trim();
 
-            if (!numTrf) {
-                numTrf = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
-                document.getElementById('numTransferenciaPatio').value = numTrf;
-            }
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
                 const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
+
+                if (!numTrf && jsonData.length > 1) {
+                    let rawTrf = jsonData[1][0] !== undefined ? String(jsonData[1][0]).trim() : '';
+                    numTrf = rawTrf.split(',')[0].replace(/\D/g, '');
+                    if (!numTrf) {
+                        numTrf = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                    }
+                    document.getElementById('numTransferenciaPatio').value = numTrf;
+                }
 
                 transferenciaAtual = {
                     numero: numTrf,
@@ -628,7 +621,7 @@
                 }
 
                 renderizarTabelaItens();
-                alert(`Transferência ${transferenciaAtual.numero} carregada! ${transferenciaAtual.itens.length} itens extraídos.`);
+                alert(`Transferência Nº ${transferenciaAtual.numero} carregada! ${transferenciaAtual.itens.length} itens extraídos.`);
             };
 
             reader.readAsArrayBuffer(file);
@@ -722,7 +715,6 @@
             }
         }
 
-        // TELA 1: SEPARAÇÃO (ALMOXARIFE)
         function concluirSeparacao() {
             let numTrf = document.getElementById('numTransferenciaPatio').value.trim();
             if (!numTrf) {
@@ -734,10 +726,9 @@
             transferenciaAtual.operadorPatio = usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador';
             
             enviarParaGoogleSheets(transferenciaAtual);
-            alert(`Separação da Transferência ${numTrf} registrada por ${transferenciaAtual.operadorPatio}!`);
+            alert(`Separação da Transferência Nº ${numTrf} registrada por ${transferenciaAtual.operadorPatio}!`);
         }
 
-        // TELA 2: EMBARQUE (ENCARREGADO)
         function concluirEmbarque() {
             let numTrf = document.getElementById('numTransferenciaEmbarque').value.trim();
             if (!numTrf) {
@@ -754,10 +745,9 @@
             };
 
             enviarParaGoogleSheets(pacoteEmbarque);
-            alert(`Fotos e liberação da Carga da Transferência ${numTrf} registradas por ${pacoteEmbarque.operadorEmbarque}!`);
+            alert(`Fotos e liberação da Carga da Transferência Nº ${numTrf} registradas por ${pacoteEmbarque.operadorEmbarque}!`);
         }
 
-        // TELA 3: ROMANEIO (ADM)
         function finalizarRomaneio() {
             let numTrf = document.getElementById('numTransferenciaRomaneio').value.trim();
             let numRom = document.getElementById('numRomaneio').value.trim();
