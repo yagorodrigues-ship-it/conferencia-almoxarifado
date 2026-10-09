@@ -1,2407 +1,853 @@
-import datetime
-import base64
-from email import encoders
-from email.mime.base import MIMEBase
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-import io
-import re
-import smtplib
-import openpyxl
-from openpyxl.formatting.rule import CellIsRule
-from openpyxl.styles import Font, PatternFill
-import pandas as pd
-import requests
-import streamlit as st
-
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Auditoria & Inventário JBA - SGT Logístico", layout="wide")
-
-# --- LISTA OFICIAL E UNIFICADA DE ESTOQUES JBA ---
-LISTA_ESTOQUES_FIXA = [
-    {"id": "1077", "desc": "JBA - CLASSE D"},
-    {"id": "1078", "desc": "JBA - COPA E COZINHA"},
-    {"id": "1080", "desc": "JBA - DADOS - CLIENTE"},
-    {"id": "1082", "desc": "JBA - VIVO VITA - CLIENTE"},
-    {"id": "1084", "desc": "JBA - EPI-EPC"},
-    {"id": "1086", "desc": "JBA - EQUIPAMENTOS"},
-    {"id": "1088", "desc": "JBA - FERRAMENTAL"},
-    {"id": "1089", "desc": "JBA - KIT FERRAMENTAL CONTRATACOES"},
-    {"id": "1090", "desc": "JBA - FERRAMENTAS DE CANTEIRO"},
-    {
-        "id": "1104",
-        "desc": "JBA - MATERIAL DE ESCRITORIO - SUPRIMENTOS DE INFORMATICA",
-    },
-    {"id": "1106", "desc": "JBA - MOBILIARIO"},
-    {"id": "1113", "desc": "1385 - MANUTENCAO JBA - CLIENTE"},
-    {"id": "1118", "desc": "JBA - PROPRIO GERAL"},
-    {"id": "1122", "desc": "JBA - GRAND OBRAS IMPLANTACAO"},
-    {"id": "1140", "desc": "JBA - SPEEDY/FTTX - CLIENTE"},
-    {"id": "1144", "desc": "1385 - MANUTENCAO JBA CLIENTE RESERVADO"},
-    {"id": "1149", "desc": "JBA - UNIFORME"},
-    {"id": "2183", "desc": "1071 - BOL IMPLANTANCAO JBA - CLIENTE"},
-    {"id": "2185", "desc": "JBA - PROPRIO FATURA B PLANTA EXTERNA - BDI"},
-    {"id": "2188", "desc": "1071 - IMPLANTACAO JBA CLIENTE RESERVADO"},
-    {"id": "2190", "desc": "JBA - DEPARTAMENTO T.I"},
-    {"id": "2194", "desc": "JBA - KITS FERRAMENTAL - DEVOLUCAO"},
-    {"id": "2197", "desc": "JBA - EQUIPAMENTOS TI"},
-    {"id": "2641", "desc": "1259 - IMPLANTACAO JBA - MATERIAL REUTILIZACAO"},
-    {"id": "2643", "desc": "1724 - MANUTENCAO JBA - MATERIAL REUTILIZACAO"},
-    {"id": "2725", "desc": "JBA - RESERVA TIM"},
-    {"id": "2983", "desc": "JBA - FORNECEDORES P/ MANUTENCAO - RECARGA"},
-    {"id": "3193", "desc": "JBA - PROPRIO MATERIAL REAPROVEITAVEL"},
-    {"id": "3395", "desc": "LPA - FTTX - CLIENTE"},
-    {"id": "3484", "desc": "JBA - CELULARES DEFEITO"},
-    {"id": "3546", "desc": "JBA - CELULARES"},
-]
-MAPA_ESTOQUES_DESC = {
-    item['id']: item['desc'] for item in LISTA_ESTOQUES_FIXA
-}
-
-
-# --- BANCO DE DADOS EM MEMÓRIA RAM COMPARTILHADA ---
-@st.cache_resource
-def obter_banco_ram_global():
-  return {
-      "usuarios": pd.DataFrame([{
-          "id": 1,
-          "nome": "Administrador Tel",
-          "cpf": "00000000000",
-          "email": "admin@tel.com.br",
-          "senha": "123",
-          "perfil": "Administrador",
-      }]),
-      "inventarios": pd.DataFrame(
-          columns=[
-              'id',
-              'nome',
-              'data',
-              'status',
-              'total_itens',
-              'acuracidade_final',
-          ]
-      ),
-      "itens_base": pd.DataFrame(
-          columns=[
-              'id',
-              'inventario_id',
-              'cod_produto',
-              'desc_produto',
-              'desc_estoque_fisico',
-              'unid_medida',
-              'qtd_estoque',
-              'id_estoque_fisico',
-              'lote',
-              'ativo',
-          ]
-      ),
-      "contagens": pd.DataFrame(
-          columns=[
-              'id',
-              'inventario_id',
-              'id_estoque',
-              'desc_estoque',
-              'cod_produto',
-              'desc_produto',
-              'unid_medida',
-              'qtd_sistema',
-              'qtd_contada',
-              'diferenca',
-              'ativo',
-              'observacao',
-              'operador',
-              'data_hora',
-              'lote',
-              'fase_contagem',
-          ]
-      ),
-      "inventarios_sup": pd.DataFrame(
-          columns=['id', 'nome', 'data', 'status']
-      ),
-      "auditorias_sup": pd.DataFrame(
-          columns=[
-              'id',
-              'inventario_id',
-              'id_estoque',
-              'desc_estoque',
-              'cod_produto',
-              'desc_produto',
-              'qtd_sistema',
-              'qtd_auditada',
-              'diferenca',
-              'etiqueta_correta',
-              'localizacao_correta',
-              'supervisor',
-              'data_hora',
-              'recontagem_3',
-              'ativo',
-          ]
-      ),
-      "bases_sup_dict": {},
-      "transferencia_ativa": {
-          "numero": "",
-          "origem": "",
-          "destino": "",
-          "status": "Pendente",
-          "itens": [],
-          "fotosCarga": [],
-          "obsCarga": "",
-          "romaneio": "",
-          "fotoRomaneio": "",
-      },
-  }
-
-
-db_ram = obter_banco_ram_global()
-
-
-def limpar_documento(doc):
-  return str(doc).strip().replace(".", "").replace("-", "").replace("/", "")
-
-
-def extrair_id_estoque_do_nome(nome_inventario):
-  numeros = re.findall(r'\b\d{4}\b', str(nome_inventario))
-  for num in numeros:
-    if num in MAPA_ESTOQUES_DESC:
-      return num
-  return ""
-
-
-def converter_para_excel(df):
-  output = io.BytesIO()
-  colunas_ordenadas = [
-      'id',
-      'inventario_id',
-      'id_estoque',
-      'desc_estoque',
-      'cod_produto',
-      'desc_produto',
-      'unid_medida',
-      'qtd_sistema',
-      'qtd_contada',
-      'diferenca',
-      'ativo',
-      'observacao',
-      'operador',
-      'data_hora',
-      'lote',
-      'fase_contagem',
-  ]
-  cols_finais = [c for c in colunas_ordenadas if c in df.columns]
-  df_f = df[cols_finais] if cols_finais else df
-  with pd.ExcelWriter(output, engine='openpyxl') as writer:
-    df_f.to_excel(writer, index=False, sheet_name='Relatorio')
-  return output.getvalue()
-
-
-# --- FUNÇÕES DE DISPARO DE E-MAIL ---
-def disparar_email_fechamento_automatico(
-    df_contagens, nome_inventario, id_estoque, operador
-):
-  try:
-    if 'email' not in st.secrets:
-      return False
-
-    smtp_server = st.secrets['email']['smtp_server']
-    smtp_port = st.secrets['email']['smtp_port']
-    sender_email = st.secrets['email']['sender_email']
-    sender_password = st.secrets['email']['sender_password']
-
-    lista_destinatarios = [
-        'yago.rodrigues@teltelecom.com.br',
-        'ferramentaljba@teltelecom.com.br',
-        'almoxspeedy@teltelecom.com.br',
-        'mariana.figueiredo@teltelecom.com.br',
-        'dulcelia.silva@teltelecom.com.br',
-        'gelsenei.rodrigues@teltelecom.com.br',
-        'claudinei.vieira@teltelecom.com.br',
-        'henrique.malosso@teltelecom.com.br',
-    ]
-
-    qtd_erros = len(df_contagens[df_contagens['diferenca'] != 0])
-    total_itens = len(df_contagens)
-    acuracidade = (
-        f'{((total_itens - qtd_erros) / total_itens) * 100:.1f}%'
-        if total_itens > 0
-        else '0%'
-    )
-
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = ', '.join(lista_destinatarios)
-    msg['Subject'] = (
-        f'🔔 [INVENTÁRIO ENCERRADO] {nome_inventario} (Estoque {id_estoque})'
-    )
-
-    corpo = f"""
-        Olá, Equipe e Gestores!
-
-        O inventário '{nome_inventario}' (Estoque {id_estoque}) foi FINALIZADO pelo almoxarife {operador}.
-
-        📊 RESUMO DO ENCERRAMENTO:
-        • Total de Itens Contados: {total_itens}
-        • Itens com Divergência: {qtd_erros}
-        • Acuracidade Final do Estoque: {acuracidade}
-
-        O relatório em Excel completo segue em anexo para acompanhamento e consolidação.
-        """
-    msg.attach(MIMEText(corpo, 'plain'))
-
-    excel_bytes = converter_para_excel(df_contagens)
-    part = MIMEBase('application', 'octet-stream')
-    part.set_payload(excel_bytes)
-    encoders.encode_base64(part)
-    part.add_header(
-        'Content-Disposition',
-        f'attachment; filename=FINAL_Contagem_{id_estoque}_{nome_inventario}.xlsx',
-    )
-    msg.attach(part)
-
-    server = smtplib.SMTP(smtp_server, smtp_port)
-    server.starttls()
-    server.login(sender_email, sender_password)
-    server.sendmail(sender_email, lista_destinatarios, msg.as_string())
-    server.quit()
-    return True
-  except Exception as e:
-    st.error(f'⚠️ Erro ao enviar e-mail automático: {e}')
-    return False
-
-
-def disparar_email_auditoria_supervisor(df_auditoria, nome_pasta, supervisor):
-  try:
-    if 'email' not in st.secrets:
-      return False
-
-    smtp_server = st.secrets['email']['smtp_server']
-    smtp_port = st.secrets['email']['smtp_port']
-    sender_email = st.secrets['email']['sender_email']
-    sender_password = st.secrets['email']['sender_password']
-
-    lista_destinatarios = [
-        'yago.rodrigues@teltelecom.com.br',
-        'ferramentaljba@teltelecom.com.br',
-        'almoxspeedy@teltelecom.com.br',
-        'mariana.figueiredo@teltelecom.com.br',
-        'dulcelia.silva@teltelecom.com.br',
-        'gelsenei.rodrigues@teltelecom.com.br',
-        'claudinei.vieira@teltelecom.com.br',
-        'henrique.malosso@teltelecom.com.br',
-    ]
-
-    total_itens = len(df_auditoria)
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = ', '.join(lista_destinatarios)
-    msg['Subject'] = f'🛡️ [AUDITORIA SUPERVISOR] {nome_pasta}'
-
-    corpo = f"""
-        Olá, Gestores!
-
-        A auditoria amostral do supervisor '{nome_pasta}' foi FINALIZADA por {supervisor}.
-
-        📊 RESUMO DA AUDITORIA:
-        • Total de Itens Auditados: {total_itens}
-
-        O relatório completo segue em anexo para alimentação automática da aba AUDITORIA_SUPERVISOR no Google Sheets.
-        """
-    msg.attach(MIMEText(corpo, 'plain'))
-
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-      df_auditoria.to_excel(writer, index=False, sheet_name='Auditoria')
-    excel_bytes = output.getvalue()
-
-    part = MIMEBase('application', 'octet-stream')
-    part.set_payload(excel_bytes)
-    encoders.encode_base64(part)
-    part.add_header(
-        'Content-Disposition',
-        f'attachment; filename=Auditoria_Supervisor_{nome_pasta}.xlsx',
-    )
-    msg.attach(part)
-
-    server = smtplib.SMTP(smtp_server, smtp_port)
-    server.starttls()
-    server.login(sender_email, sender_password)
-    server.sendmail(sender_email, lista_destinatarios, msg.as_string())
-    server.quit()
-    return True
-  except Exception as e:
-    st.error(f'⚠️ Erro ao enviar e-mail de auditoria: {e}')
-    return False
-
-
-def gerar_relatorio_consolidado_excel(df_contagens, lista_estoques_ref):
-  output = io.BytesIO()
-  with pd.ExcelWriter(output, engine='openpyxl') as writer:
-    linhas_resumo = []
-    for est in lista_estoques_ref:
-      est_id = str(est['id']).strip()
-      df_est = (
-          df_contagens[
-              df_contagens['id_estoque']
-              .astype(str)
-              .str.replace('.0', '', regex=False)
-              .str.strip()
-              == est_id
-          ]
-          if not df_contagens.empty and 'id_estoque' in df_contagens.columns
-          else pd.DataFrame()
-      )
-
-      total_itens = len(df_est)
-      acertos = (
-          len(
-              df_est[
-                  pd.to_numeric(df_est['diferenca'], errors='coerce') == 0
-              ]
-          )
-          if total_itens > 0
-          else 0
-      )
-      erros = (
-          len(
-              df_est[
-                  pd.to_numeric(df_est['diferenca'], errors='coerce') != 0
-              ]
-          )
-          if total_itens > 0
-          else 0
-      )
-
-      # Considera como 2ª Contagem/Correção os itens regularizados via planilha
-      qtd_segunda = 0
-      if not df_est.empty:
-        cond_obs = (
-            df_est['observacao']
-            .fillna('')
-            .astype(str)
-            .str.upper()
-            .str.contains('REGULARIZADO|CORRIGIDO')
-            if 'observacao' in df_est.columns
-            else pd.Series(False, index=df_est.index)
-        )
-        cond_fase = (
-            df_est['fase_contagem']
-            .fillna('')
-            .astype(str)
-            .str.upper()
-            .str.contains('2A CONTAGEM|CORRIGIDO')
-            if 'fase_contagem' in df_est.columns
-            else pd.Series(False, index=df_est.index)
-        )
-        qtd_segunda = len(df_est[cond_obs | cond_fase])
-
-      acuracidade_pct = (acertos / total_itens) if total_itens > 0 else 0.0
-
-      u_data_raw = (
-          str(df_est['data_hora'].max())
-          if not df_est.empty and 'data_hora' in df_est.columns
-          else '—'
-      )
-      u_data_est = (
-          u_data_raw.split(" ")[0].split("T")[0] if u_data_raw != '—' else '—'
-      )
-
-      obs_erros = []
-      if not df_est.empty and 'observacao' in df_est.columns:
-        obs_validas = (
-            df_est[
-                df_est['observacao'].fillna('').astype(str).str.strip() != ''
-            ]['observacao']
-            .unique()
-            .tolist()
-        )
-        if obs_validas:
-          obs_erros.append('; '.join(map(str, obs_validas)))
-      if erros > 0 and not df_est.empty:
-        erros_cods = (
-            df_est[pd.to_numeric(df_est['diferenca'], errors='coerce') != 0][
-                'cod_produto'
-            ]
-            .unique()
-            .tolist()
-        )
-        obs_erros.append(
-            f"Divergências: {', '.join(map(str, erros_cods[:5]))}"
-            + ('...' if len(erros_cods) > 5 else '')
-        )
-
-      linhas_resumo.append({
-          'Id. Estoq. Físico': est_id,
-          'Desc. Estoque Físico': est['desc'],
-          'Total de itens': total_itens,
-          'Acertos': acertos,
-          'Erros': erros,
-          '2º Contagem': qtd_segunda,
-          'Acuracidade': acuracidade_pct,
-          'Última Contagem': u_data_est,
-          'Obs': (
-              ' | '.join(obs_erros) if obs_erros else 'Nenhuma observação'
-          ),
-      })
-
-    df_resumo = pd.DataFrame(linhas_resumo)
-    df_resumo.to_excel(writer, index=False, sheet_name='Acuracidade')
-
-    worksheet = writer.sheets['Acuracidade']
-    red_fill = PatternFill(
-        start_color='FFC7CE', end_color='FFC7CE', fill_type='solid'
-    )
-    green_fill = PatternFill(
-        start_color='C6EFCE', end_color='C6EFCE', fill_type='solid'
-    )
-    header_fill = PatternFill(
-        start_color='203764', end_color='203764', fill_type='solid'
-    )
-    header_font = Font(color='FFFFFF', bold=True)
-
-    for col_idx in range(1, len(df_resumo.columns) + 1):
-      cell = worksheet.cell(row=1, column=col_idx)
-      cell.fill = header_fill
-      cell.font = header_font
-
-    for row in range(2, len(df_resumo) + 2):
-      worksheet[f'G{row}'].number_format = '0.00%'
-      cell_erros = worksheet[f'E{row}']
-      if cell_erros.value and int(cell_erros.value) > 0:
-        cell_erros.fill = red_fill
-      elif (
-          cell_erros.value == 0
-          and worksheet[f'C{row}'].value
-          and int(worksheet[f'C{row}'].value) > 0
-      ):
-        cell_erros.fill = green_fill
-
-    if not df_contagens.empty and 'id_estoque' in df_contagens.columns:
-      for est_id, group in df_contagens.groupby('id_estoque'):
-        nome_aba = str(est_id).replace('.0', '').strip()[:31]
-        if nome_aba:
-          group_limpo = group.drop(columns=['id'], errors='ignore')
-          group_limpo.to_excel(writer, index=False, sheet_name=nome_aba)
-
-  return output.getvalue()
-
-
-def enviar_dados_script_google(payload):
-  url_script = st.secrets.get("google", {}).get("script_url", "")
-  if url_script:
-    try:
-      requests.post(url_script, json=payload, timeout=10)
-      st.toast("✅ Sincronizado com o Google Sheets!", icon="☁️")
-    except Exception as e:
-      st.warning(f"⚠️ Salvo localmente (Erro na conexão nuvem: {e})")
-
-
-# --- ESTILOS CSS ---
-st.markdown(
-    """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGT - Guardião Logístico</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (Leitura de Excel .xlsx / .csv) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
-    div.stButton > button:first-child[kind="primary"] { background-color: #d35400; border-color: #d35400; color: white; font-weight: bold; }
-    div.stButton > button:first-child[kind="primary"]:hover { background-color: #e67e22; border-color: #e67e22; color: white; }
-    .card-lateral { background-color: #1a233a; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #2563eb; }
-    .card-lateral-titulo { color: #93c5fd; font-size: 11px; font-weight: bold; }
-    .card-lateral-valor { color: white; font-size: 22px; font-weight: bold; }
-    .caixa-descricao-produto { background-color: #ebf8ff; border-left: 5px solid #3182ce; padding: 12px 16px; border-radius: 6px; font-size: 16px; font-weight: bold; color: #1a365d; margin: 10px 0; }
+        .badge-status {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
     </style>
-""",
-    unsafe_allow_html=True,
-)
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
 
-# INICIALIZAÇÃO DE ESTADOS DE NAVEGAÇÃO
-if "logged_in" not in st.session_state:
-  st.session_state.logged_in = False
-if "operador" not in st.session_state:
-  st.session_state.operador = ""
-if "perfil_usuario" not in st.session_state:
-  st.session_state.perfil_usuario = "Almoxarife"
-if "tela_acesso" not in st.session_state:
-  st.session_state.tela_acesso = "login"
-if "contador_reset" not in st.session_state:
-  st.session_state.contador_reset = 0
-if "contador_reset_sup" not in st.session_state:
-  st.session_state.contador_reset_sup = 0
-if "pagina_historico" not in st.session_state:
-  st.session_state.pagina_historico = 1
+    <!-- TELA DE LOGIN -->
+    <div id="telaLogin" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4">
+        <div class="max-w-md w-full space-y-4">
+            <div class="text-center space-y-2 mb-6">
+                <h1 class="text-2xl font-bold text-white flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-lock text-slate-200"></i> Acesso ao Sistema SGT
+                </h1>
+            </div>
 
-# --- TELA DE LOGIN CENTRALIZADA ---
-if not st.session_state.logged_in:
-  col_vaz1, col_central, col_vaz2 = st.columns([1, 1.2, 1])
-  with col_central:
-    if st.session_state.tela_acesso == "login":
-      st.title("🔒 Acesso ao Sistema JBA")
-      with st.form("login_form"):
-        identificador = st.text_input("CPF ou E-mail")
-        senha = st.text_input("Senha", type="password")
-        if st.form_submit_button(
-            "Entrar no Sistema", type="primary", use_container_width=True
-        ):
-          id_limpo = identificador.strip()
-          doc_limpo = limpar_documento(id_limpo)
-          df_u = db_ram["usuarios"]
-          user = df_u[
-              ((df_u['email'] == id_limpo) | (df_u['cpf'] == doc_limpo))
-              & (df_u['senha'] == senha)
-          ]
-          if not user.empty:
-            st.session_state.logged_in = True
-            st.session_state.operador = user.iloc[0]['nome']
-            st.session_state.perfil_usuario = (
-                user.iloc[0]['perfil'] or "Almoxarife"
-            )
-            st.rerun()
-          else:
-            st.error("❌ Credenciais incorretas.")
-      if st.button(
-          "📝 Criar nova conta de colaborador", use_container_width=True
-      ):
-        st.session_state.tela_acesso = "cadastro"
-        st.rerun()
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">CPF ou E-mail</label>
+                    <input type="text" id="loginUser" placeholder="Digite seu CPF ou E-mail" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none focus:border-emerald-500 font-medium">
+                </div>
 
-    elif st.session_state.tela_acesso == "cadastro":
-      st.title("📝 Cadastro de Colaborador")
-      with st.form("cadastro_form"):
-        novo_nome = st.text_input("Nome Completo")
-        novo_cpf = st.text_input("CPF (Apenas números)")
-        novo_email = st.text_input("E-mail")
-        nova_senha = st.text_input("Senha", type="password")
-        confirma_senha = st.text_input("Confirme a Senha", type="password")
-        if st.form_submit_button(
-            "Finalizar Cadastro", type="primary", use_container_width=True
-        ):
-          cpf_l = limpar_documento(novo_cpf)
-          if not novo_nome or not cpf_l or not novo_email or not nova_senha:
-            st.error("⚠️ Preencha todos os campos!")
-          elif nova_senha != confirma_senha:
-            st.error("❌ Senhas divergentes!")
-          else:
-            novo_id_u = len(db_ram["usuarios"]) + 1
-            db_ram["usuarios"] = pd.concat([
-                db_ram["usuarios"],
-                pd.DataFrame([{
-                    "id": novo_id_u,
-                    "nome": novo_nome.strip(),
-                    "cpf": cpf_l,
-                    "email": novo_email.strip(),
-                    "senha": nova_senha,
-                    "perfil": "Almoxarife",
-                }]),
-            ], ignore_index=True)
-            st.success("✅ Cadastro realizado!")
-            st.session_state.tela_acesso = "login"
-            st.rerun()
-      if st.button("◀ Voltar para o Login"):
-        st.session_state.tela_acesso = "login"
-        st.rerun()
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Senha</label>
+                    <div class="relative">
+                        <input type="password" id="loginPass" placeholder="Digite sua senha" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none focus:border-emerald-500 font-medium pr-10">
+                        <button type="button" onclick="alternarVisibilidadeSenha('loginPass', 'iconEyeLogin')" class="absolute right-3 top-3 text-slate-500 hover:text-slate-300">
+                            <i id="iconEyeLogin" class="fa-regular fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
 
-# --- APLICAÇÃO PRINCIPAL LOGADA ---
-else:
-  df_inventarios = db_ram["inventarios"]
-  df_inventarios_sup = db_ram["inventarios_sup"]
-  eh_supervisor = (
-      st.session_state.perfil_usuario == "Administrador"
-  ) or ("admin" in st.session_state.operador.lower())
+                <button onclick="efetuarLogin()" class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg shadow-rose-950/30">
+                    Entrar no Sistema
+                </button>
+            </div>
 
-  # --- BARRA LATERAL ---
-  with st.sidebar:
-    st.write(
-        f"👤 **{st.session_state.operador}** ({st.session_state.perfil_usuario})"
-    )
-    st.success("⚡ Memória RAM Compartilhada")
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 text-center shadow-lg">
+                <button onclick="exibirTelaCadastro()" class="text-xs text-slate-300 hover:text-white font-medium flex items-center justify-center gap-2 w-full py-1">
+                    <i class="fa-solid fa-user-plus text-amber-400"></i> Criar nova conta de colaborador
+                </button>
+            </div>
+        </div>
+    </div>
 
-    col_s1, col_s2 = st.columns(2)
-    with col_s1:
-      if st.button("🔄 Recarregar", use_container_width=True):
-        st.rerun()
-    with col_s2:
-      if st.button("🚪 Sair", use_container_width=True):
-        st.session_state.logged_in = False
-        st.session_state.operador = ""
-        st.rerun()
+    <!-- TELA DE CADASTRO -->
+    <div id="telaCadastro" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 hidden">
+        <div class="max-w-md w-full space-y-4">
+            <div class="text-center mb-4">
+                <h1 class="text-2xl font-bold text-white flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-id-card text-slate-200"></i> Cadastro de Colaborador
+                </h1>
+            </div>
 
-    st.markdown("---")
-    st.write("📁 **Seleção de Inventário**")
-    if df_inventarios.empty:
-      id_inventario_atual = None
-      inventario_selected_obj = None
-      id_pasta_limpo_base = ""
-      st.info("Crie um inventário abaixo.")
-    else:
-      lista_inv = [
-          f"{row['id']} – {row['nome']} ({row['status']})"
-          for idx, row in df_inventarios.iterrows()
-      ]
-      inventario_selected = st.selectbox(
-          "Selecione a Pasta", lista_inv, index=0, key="sb_pasta_ativa"
-      )
-      id_inventario_atual = inventario_selected.split(" – ")[0]
-      inventario_selected_obj = df_inventarios[
-          df_inventarios['id'] == id_inventario_atual
-      ].iloc[0]
-      id_pasta_limpo_base = id_inventario_atual.replace("#", "").strip()
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nome Completo</label>
+                    <input type="text" id="cadNome" placeholder="Ex: Carlos Silva" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500">
+                </div>
 
-    # UPLOAD DA BASE
-    st.write("📂 **Upload Base de Dados (.xlsx)**")
-    if (
-        inventario_selected_obj is not None
-        and inventario_selected_obj['status'] == "Aberto"
-    ):
-      uploader_key = (
-          f"func_excel_loader_{id_pasta_limpo_base if id_pasta_limpo_base else 'vazio'}_{st.session_state.contador_reset}"
-      )
-      arquivo_excel = st.file_uploader(
-          "Suba o arquivo Excel (.xlsx)",
-          type=["xlsx"],
-          label_visibility="collapsed",
-          key=uploader_key,
-      )
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">CPF (Apenas números)</label>
+                    <input type="text" id="cadCPF" placeholder="000.000.000-00" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500">
+                </div>
 
-      if arquivo_excel is not None and id_pasta_limpo_base:
-        with st.spinner("🚀 Processando base..."):
-          df_upload_temp = pd.read_excel(arquivo_excel)
-          mapa_cols_upload = {
-              str(col)
-              .replace("\xa0", " ")
-              .strip()
-              .lower()
-              .replace(" ", "")
-              .replace(".", "")
-              .replace("ó", "o")
-              .replace("á", "a"): col
-              for col in df_upload_temp.columns
-          }
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">E-mail</label>
+                    <input type="email" id="cadEmail" placeholder="colaborador@tel.com.br" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500">
+                </div>
 
-          col_cod, col_desc = mapa_cols_upload.get(
-              "codproduto"
-          ), mapa_cols_upload.get("descproduto")
-          col_est, col_uni = mapa_cols_upload.get(
-              "descestoquefisico"
-          ), mapa_cols_upload.get("unidmedida")
-          col_qtd, col_idest = mapa_cols_upload.get(
-              "qtdestoque"
-          ), mapa_cols_upload.get("idestoquefisico")
-          col_lote, col_ativo = mapa_cols_upload.get(
-              "lote"
-          ), mapa_cols_upload.get("ativo")
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Função / Setor</label>
+                    <select id="cadFuncao" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500">
+                        <option value="Almoxarife">Almoxarife (Pátio / Separação)</option>
+                        <option value="Encarregado">Encarregado (Expedição / Embarque)</option>
+                        <option value="Administrativo">Administrativo (ADM / Romaneio)</option>
+                    </select>
+                </div>
 
-          est_id_fallback = extrair_id_estoque_do_nome(
-              inventario_selected_obj['nome']
-          )
-          est_desc_fallback = MAPA_ESTOQUES_DESC.get(
-              est_id_fallback, 'ESTOQUE FÍSICO'
-          )
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Senha</label>
+                    <input type="password" id="cadPass" placeholder="••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500">
+                </div>
 
-          if not col_cod or not col_desc:
-            st.error("❌ Planilha fora do padrão JBA.")
-          else:
-            db_ram["itens_base"] = db_ram["itens_base"][
-                ~db_ram["itens_base"]['inventario_id'].isin(
-                    [id_pasta_limpo_base, f"#{id_pasta_limpo_base}"]
-                )
-            ]
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Confirme a Senha</label>
+                    <input type="password" id="cadPassConf" placeholder="••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500">
+                </div>
 
-            novas_linhas_b = []
-            for _, r in df_upload_temp.iterrows():
-              novas_linhas_b.append({
-                  "id": len(db_ram["itens_base"]) + len(novas_linhas_b) + 1,
-                  "inventario_id": id_pasta_limpo_base,
-                  "cod_produto": (
-                      str(r[col_cod]).strip()
-                      if col_cod and pd.notna(r[col_cod])
-                      else ''
-                  ),
-                  "desc_produto": (
-                      str(r[col_desc]).strip()
-                      if col_desc and pd.notna(r[col_desc])
-                      else ''
-                  ),
-                  "desc_estoque_fisico": (
-                      str(r[col_est]).strip()
-                      if col_est
-                      and pd.notna(r[col_est])
-                      and str(r[col_est]).strip() != ''
-                      else est_desc_fallback
-                  ),
-                  "unid_medida": (
-                      str(r[col_uni]).strip()
-                      if col_uni and pd.notna(r[col_uni])
-                      else ''
-                  ),
-                  "qtd_estoque": (
-                      int(pd.to_numeric(r[col_qtd], errors='coerce') or 0)
-                      if col_qtd
-                      else 0
-                  ),
-                  "id_estoque_fisico": (
-                      str(r[col_idest]).strip()
-                      if col_idest
-                      and pd.notna(r[col_idest])
-                      and str(r[col_idest]).strip() != ''
-                      else est_id_fallback
-                  ),
-                  "lote": (
-                      str(r[col_lote]).strip()
-                      if col_lote
-                      and pd.notna(r[col_lote])
-                      and str(r[col_lote]).lower() != 'nan'
-                      else ''
-                  ),
-                  "ativo": (
-                      str(r[col_ativo]).strip()
-                      if col_ativo
-                      and pd.notna(r[col_ativo])
-                      and str(r[col_ativo]).lower() != 'nan'
-                      else ''
-                  ),
-              })
+                <button onclick="finalizarCadastro()" class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg shadow-rose-950/30 mt-2">
+                    Finalizar Cadastro
+                </button>
+            </div>
 
-            db_ram["itens_base"] = pd.concat(
-                [db_ram["itens_base"], pd.DataFrame(novas_linhas_b)],
-                ignore_index=True,
-            )
-            st.success("✅ Base Carregada no Servidor!")
+            <div>
+                <button onclick="exibirTelaLogin()" class="bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white font-medium px-4 py-2 rounded-xl flex items-center gap-2">
+                    <i class="fa-solid fa-caret-left"></i> Voltar para o Login
+                </button>
+            </div>
+        </div>
+    </div>
 
-    elif inventario_selected_obj is not None and inventario_selected_obj[
-        'status'
-    ] in ["1a Contagem", "2a Contagem"]:
-      st.info(f"🔒 **Base Congelada ({inventario_selected_obj['status']})**.")
-    else:
-      st.info("🔒 Crie um inventário 'Aberto'.")
+    <!-- HEADER / NAVEGAÇÃO -->
+    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid font-bold text-xl text-emerald-400 fa-boxes-stacked"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight text-white tracking-wide">SGT - Guardião Logístico</h1>
+                    <p class="text-xs text-slate-400">Auditoria & Rastreabilidade de Transferências</p>
+                </div>
+            </div>
 
-    base_sistema_atual = (
-        db_ram["itens_base"][
-            db_ram["itens_base"]['inventario_id'].isin(
-                [id_pasta_limpo_base, f"#{id_pasta_limpo_base}"]
-            )
-        ]
-        if id_pasta_limpo_base
-        else pd.DataFrame()
-    )
+            <!-- Botões de Troca de Tela -->
+            <div class="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+                <button id="btnNavPatio" onclick="mudarTela('patio')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30">
+                    <i class="fa-solid fa-hard-hat mr-1.5"></i> Tela 1: Pátio
+                </button>
+                <button id="btnNavEmbarque" onclick="mudarTela('embarque')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-truck-ramp-box mr-1.5"></i> Tela 2: Embarque
+                </button>
+                <button id="btnNavRomaneio" onclick="mudarTela('romaneio')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-file-signature mr-1.5"></i> Tela 3: Romaneio
+                </button>
+            </div>
 
-    if (
-        inventario_selected_obj is not None
-        and inventario_selected_obj['status'] == "Aberto"
-        and not base_sistema_atual.empty
-    ):
-      st.markdown("---")
-      if st.button(
-          "🚀 Salvar Base e Iniciar 1ª Contagem",
-          type="primary",
-          use_container_width=True,
-      ):
-        db_ram["inventarios"].loc[
-            db_ram["inventarios"]['id'] == id_inventario_atual, 'status'
-        ] = '1a Contagem'
-        st.success("🔒 1ª Contagem liberada.")
-        st.rerun()
+            <!-- Usuário Logado & Configurações -->
+            <div class="flex items-center gap-2">
+                <div class="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs flex items-center gap-2">
+                    <i class="fa-solid fa-user-check text-emerald-400"></i>
+                    <div>
+                        <p id="exibirUsuarioNome" class="font-bold text-slate-200 leading-none"></p>
+                        <p id="exibirUsuarioFuncao" class="text-[10px] text-slate-400 leading-none mt-0.5"></p>
+                    </div>
+                    <button onclick="sairSistema()" class="text-slate-500 hover:text-rose-400 ml-1" title="Sair / Trocar Usuário">
+                        <i class="fa-solid fa-power-off"></i>
+                    </button>
+                </div>
 
-    with st.expander("➕ Criar Novo Inventário"):
-      with st.form("form_novo", clear_on_submit=True):
-        novo_nome = st.text_input("Nome do Inventário")
-        if st.form_submit_button("Criar Pasta", type="primary") and novo_nome:
-          maior_id = (
-              db_ram["inventarios"]['id']
-              .str.replace('#', '', regex=False)
-              .astype(int)
-              .max()
-              if not db_ram["inventarios"].empty
-              else 0
-          )
-          novo_id_str = f"#{maior_id + 1}"
-          db_ram["inventarios"] = pd.concat(
-              [
-                  db_ram["inventarios"],
-                  pd.DataFrame([{
-                      'id': novo_id_str,
-                      'nome': novo_nome,
-                      'data': datetime.date.today().strftime("%Y-%m-%d"),
-                      'status': 'Aberto',
-                      'total_itens': 0,
-                      'acuracidade_final': '0%',
-                  }]),
-              ],
-              ignore_index=True,
-          )
-          st.rerun()
+                <button onclick="abrirModalConfig()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 border border-slate-700 transition">
+                    <i class="fa-solid fa-gear text-amber-400"></i>
+                </button>
+            </div>
+        </div>
+    </header>
 
-    # FECHAMENTO DO INVENTÁRIO
-    pode_fechar, itens_faltantes, itens_pendentes_2a = False, [], []
-    if (
-        inventario_selected_obj is not None
-        and inventario_selected_obj['status'] in ["1a Contagem", "2a Contagem"]
-        and not base_sistema_atual.empty
-    ):
-      df_cnts_pasta = db_ram["contagens"][
-          db_ram["contagens"]['inventario_id'].isin(
-              [id_pasta_limpo_base, f"#{id_pasta_limpo_base}"]
-          )
-      ]
-      set_contados_triade = {
-          f"{str(r['cod_produto']).upper().strip()}_{str(r['lote']).upper().strip() if pd.notna(r['lote']) else ''}_{str(r['ativo']).upper().strip() if pd.notna(r['ativo']) else ''}"
-          for _, r in df_cnts_pasta.iterrows()
-      }
+    <!-- CONTAINER PRINCIPAL -->
+    <main class="max-w-7xl mx-auto p-4">
 
-      if inventario_selected_obj['status'] == "1a Contagem":
-        for _, r_b in base_sistema_atual.iterrows():
-          c_b, l_b, a_b = (
-              str(r_b['cod_produto']).upper().strip(),
-              (
-                  str(r_b['lote']).upper().strip()
-                  if pd.notna(r_b['lote']) and str(r_b['lote']).lower() != 'nan'
-                  else ""
-              ),
-              (
-                  str(r_b['ativo']).upper().strip()
-                  if pd.notna(r_b['ativo'])
-                  and str(r_b['ativo']).lower() != 'nan'
-                  else ""
-              ),
-          )
-          if f"{c_b}_{l_b}_{a_b}" not in set_contados_triade:
-            itens_faltantes.append(c_b)
-        if len(itens_faltantes) == 0:
-          pode_fechar = True
-      elif inventario_selected_obj['status'] == "2a Contagem":
-        itens_pendentes_2a = df_cnts_pasta[
-            df_cnts_pasta['fase_contagem'] == '2a Contagem'
-        ]['cod_produto'].tolist()
-        if len(itens_pendentes_2a) == 0:
-          pode_fechar = True
+        <!-- TELA 1: PÁTIO / ALMOXARIFE -->
+        <div id="telaPatio" class="space-y-6">
 
-      st.markdown("---")
+            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+                    <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-file-import"></i> Etapa 1. Importar Transferência do ERP (Almoxarife)
+                    </h2>
+                    <span id="indicadorRascunho" class="text-xs font-mono bg-slate-950 text-slate-400 px-2.5 py-1 rounded-md border border-slate-800">
+                        Nº TRF Lida da Coluna A (CODIGO)
+                    </span>
+                </div>
 
-      def fechar_e_preservar_historico(id_inv, id_limpo):
-        df_f = db_ram["contagens"][
-            db_ram["contagens"]['inventario_id'].isin(
-                [id_limpo, f"#{id_limpo}"]
-            )
-        ]
-        tot = len(df_f)
-        acertos = len(df_f[df_f['diferenca'] == 0]) if tot > 0 else 0
-        pct_acu = f"{(acertos / tot)*100:.1f}%" if tot > 0 else "0%"
-        db_ram["inventarios"].loc[
-            db_ram["inventarios"]['id'] == id_inv, 'status'
-        ] = 'Fechado'
-        db_ram["inventarios"].loc[
-            db_ram["inventarios"]['id'] == id_inv, 'total_itens'
-        ] = tot
-        db_ram["inventarios"].loc[
-            db_ram["inventarios"]['id'] == id_inv, 'acuracidade_final'
-        ] = pct_acu
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Ficheiro Excel (.xlsx / .csv):</label>
+                        <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" onchange="detectarDadosExcel(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº Transferência / Guia:</label>
+                        <input type="text" id="numTransferenciaPatio" onchange="salvarRascunhoAuto()" placeholder="Auto lido da Coluna CODIGO" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm focus:border-emerald-500 outline-none font-bold text-emerald-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Origem (Colunas B + C):</label>
+                        <input type="text" id="filialOrigem" onchange="salvarRascunhoAuto()" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-slate-200 font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Destino (Colunas D + E):</label>
+                        <input type="text" id="filialDestino" onchange="salvarRascunhoAuto()" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-emerald-300 font-semibold">
+                    </div>
+                </div>
 
-        disparar_email_fechamento_automatico(
-            df_f,
-            inventario_selected_obj['nome'],
-            id_pasta_limpo_base,
-            st.session_state.operador,
-        )
+                <div class="flex justify-end border-t border-slate-800/80 pt-3">
+                    <button onclick="carregarExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition">
+                        <i class="fa-solid fa-play"></i> Carregar Itens do Excel
+                    </button>
+                </div>
+            </div>
 
-      if pode_fechar:
-        st.success("🎉 **100% dos itens contados!**")
-        if st.button(
-            "🔒 Fechar Inventário e Enviar por E-mail",
-            type="primary",
-            use_container_width=True,
-        ):
-          fechar_e_preservar_historico(
-              id_inventario_atual, id_pasta_limpo_base
-          )
-          st.success("✅ Inventário encerrado e e-mail automático disparado!")
-          st.rerun()
-      else:
-        qtd_f = (
-            len(itens_faltantes)
-            if inventario_selected_obj['status'] == "1a Contagem"
-            else len(itens_pendentes_2a)
-        )
-        st.warning(f"⏳ Faltam **{qtd_f}** itens para concluir.")
-        if eh_supervisor:
-          if st.button(
-              "🚨 Forçar Fechamento Incompleto (ADMIN)", use_container_width=True
-          ):
-            fechar_e_preservar_historico(
-                id_inventario_atual, id_pasta_limpo_base
-            )
-            st.success("✅ Inventário encerrado!")
-            st.rerun()
+            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-boxes-packing"></i> Etapa 2. Evidenciação por Item (Fotos do Material)
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Confira a quantidade e tire até 5 fotos por item. Salvo em rascunho automaticamente.</p>
+                    </div>
+                    <button onclick="concluirSeparacao()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-md shadow-emerald-900/20">
+                        <i class="fa-solid fa-check-double"></i> Concluir Separação (Enviar p/ Nuvem)
+                    </button>
+                </div>
 
-    # KPIs SIDEBAR
-    total_itens_base = (
-        len(base_sistema_atual) if not base_sistema_atual.empty else 0
-    )
-    df_cnts_p_side = (
-        db_ram["contagens"][
-            db_ram["contagens"]['inventario_id'].isin(
-                [id_pasta_limpo_base, f"#{id_pasta_limpo_base}"]
-            )
-        ]
-        if id_pasta_limpo_base
-        else pd.DataFrame()
-    )
-    total_contados_cnt = len(df_cnts_p_side)
+                <div class="overflow-x-auto rounded-xl border border-slate-800">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="bg-slate-950 text-xs text-slate-400 uppercase border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">Código (Y)</th>
+                                <th class="p-3">Descrição (Z)</th>
+                                <th class="p-3">Património/Ativo (AD)</th>
+                                <th class="p-3">Lote (AF)</th>
+                                <th class="p-3 text-center">Qtd ERP (AC)</th>
+                                <th class="p-3 text-center">Qtd Conferida</th>
+                                <th class="p-3">Observação / Avaria</th>
+                                <th class="p-3 text-center">Fotos Evidência (Até 5)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaItens" class="divide-y divide-slate-800/60 bg-slate-900/50">
+                            <tr>
+                                <td colspan="8" class="p-8 text-center text-slate-500">Nenhuma transferência carregada. Importe um ficheiro Excel acima.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-    st.markdown(
-        f'<div class="card-lateral"><div'
-        ' class="card-lateral-titulo">📋 ITENS NA'
-        f' BASE</div><div class="card-lateral-valor">{total_itens_base}</div></div>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        f'<div class="card-lateral"><div'
-        ' class="card-lateral-titulo">✅ LANÇAMENTOS</div><div'
-        f' class="card-lateral-valor">{total_contados_cnt}</div></div>',
-        unsafe_allow_html=True,
-    )
+        </div>
 
-  # --- DECLARAÇÃO DAS ABAS PRINCIPAIS ---
-  lista_abas = [
-      "🔍 Contar Item",
-      "📊 Lançamentos & Base",
-      "📈 Desempenho & Acuracidade",
-      "🚛 Transferências (SGT)",
-      "📁 Histórico Geral",
-      "📊 Consolidador de Planilhas",
-  ]
-  if eh_supervisor:
-    lista_abas.append("⚙️ Gestão ADM")
+        <!-- TELA 2: EMBARQUE -->
+        <div id="telaEmbarque" class="space-y-6 hidden">
+            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-truck-ramp-box"></i> Liberação da Carga & Caminhão (Encarregado)
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Informe o número da transferência cadastrada no pátio para vincular as fotos do envio.</p>
+                    </div>
+                </div>
 
-  abas_objs = st.tabs(lista_abas)
-  (
-      aba_contar,
-      aba_lancamentos,
-      aba_desempenho,
-      aba_sgt,
-      aba_historico,
-      aba_consolidar,
-  ) = (
-      abas_objs[0],
-      abas_objs[1],
-      abas_objs[2],
-      abas_objs[3],
-      abas_objs[4],
-      abas_objs[5],
-  )
-  aba_adm = abas_objs[6] if eh_supervisor else None
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="md:col-span-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                        <label class="block text-xs font-semibold text-emerald-400 mb-1.5">Nº da Transferência / Guia:</label>
+                        <input type="text" id="numTransferenciaEmbarque" placeholder="Digite o Nº da Transferência (Ex: 1916447)" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-base font-bold text-emerald-400 outline-none focus:border-emerald-500">
+                    </div>
 
-  # --- ABA 1: CONTAR ITEM (BUSCA POR CÓDIGO DO PRODUTO OU LOTE COMPLETO) ---
-  with aba_contar:
-    if not id_inventario_atual or (
-        base_sistema_atual.empty and inventario_selected_obj['status'] == 'Aberto'
-    ):
-      st.warning(
-          "⚠️ Selecione um inventário ativo e carregue a base na barra"
-          " lateral."
-      )
-    elif inventario_selected_obj['status'] == "Aberto":
-      st.warning(
-          "⚠️ Inventário em configuração. Libere a 1ª Contagem na barra"
-          " lateral."
-      )
-    elif inventario_selected_obj['status'] == "Fechado":
-      st.error(
-          "🔒 Inventário Fechado. O relatório em Excel foi enviado por e-mail e"
-          " está salvo no Histórico Geral."
-      )
-    elif pode_fechar and inventario_selected_obj['status'] in [
-        "1a Contagem",
-        "2a Contagem",
-    ]:
-      st.success(
-          "🎉 **100% dos itens desta fase já foram contados!** Clique em Fechar"
-          " Inventário na barra lateral."
-      )
-    else:
-      codigo_input = st.text_input(
-          "💻 Bipar ou Digitar Código do Produto ou Lote",
-          value="",
-          placeholder="Bipe a etiqueta aqui...",
-          key=f"bip_{st.session_state.contador_reset}",
-      )
-      if codigo_input:
-        codigo_bipado = str(codigo_input).upper().strip().split(" - ")[-1]
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Fotos da Carga Embalada / Caminhão (Até 5 fotos):</label>
+                        <input type="file" id="fotosCarga" accept="image/*" multiple onchange="previewFotosCarga(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white bg-slate-950 rounded-xl border border-slate-800">
+                        <div id="galeriaFotosCarga" class="flex flex-wrap gap-2 mt-3"></div>
+                    </div>
 
-        matches_codigo = base_sistema_atual[
-            (
-                base_sistema_atual['cod_produto']
-                .astype(str)
-                .str.upper()
-                .str.strip()
-                == codigo_bipado
-            )
-            | (
-                base_sistema_atual['lote']
-                .fillna("")
-                .astype(str)
-                .str.upper()
-                .str.strip()
-                == codigo_bipado
-            )
-        ]
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Observações do Envio / Lacre / Placa:</label>
+                        <textarea id="obsCarga" rows="4" placeholder="Ex: Carga posicionada no baú 02. Lacre nº 987654. Placa ABC-1234. Saída às 14h." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-slate-200"></textarea>
+                    </div>
+                </div>
 
-        if matches_codigo.empty:
-          st.error("❌ Código ou Lote não cadastrado na planilha base!")
-        else:
-          df_cnts_p_exist = db_ram["contagens"][
-              db_ram["contagens"]['inventario_id'].isin(
-                  [id_pasta_limpo_base, f"#{id_pasta_limpo_base}"]
-              )
-          ]
-          df_cod_exist = df_cnts_p_exist[
-              df_cnts_p_exist['cod_produto'].isin(
-                  matches_codigo['cod_produto']
-              )
-          ]
+                <div class="flex justify-end border-t border-slate-800/80 pt-3">
+                    <button onclick="concluirEmbarque()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-900/20">
+                        <i class="fa-solid fa-truck-fast"></i> Autorizar e Concluir Embarque
+                    </button>
+                </div>
+            </div>
+        </div>
 
-          set_ja_contados_1a = {
-              f"{str(r['lote']).strip().upper() if pd.notna(r['lote']) else ''}_{str(r['ativo']).strip().upper() if pd.notna(r['ativo']) else ''}"
-              for _, r in df_cod_exist.iterrows()
-          }
-          df_liberados_2a = df_cod_exist[
-              df_cod_exist['fase_contagem'] == '2a Contagem'
-          ]
-          set_liberados_2a = {
-              f"{str(r['lote']).strip().upper() if pd.notna(r['lote']) else ''}_{str(r['ativo']).strip().upper() if pd.notna(r['ativo']) else ''}"
-              for _, r in df_liberados_2a.iterrows()
-          }
+        <!-- TELA 3: ROMANEIO -->
+        <div id="telaRomaneio" class="space-y-6 hidden">
+            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-file-invoice-dollar"></i> Lançamento de Romaneio Assinado (ADM)
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Informe o número da transferência para atualizar o status e vincular o comprovante assinado.</p>
+                    </div>
+                </div>
 
-          status_pasta_atual = inventario_selected_obj['status']
-          pode_exibir_form = True
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-emerald-400 mb-1.5">Nº da Transferência / Guia:</label>
+                        <input type="text" id="numTransferenciaRomaneio" placeholder="Ex: 1916447" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-emerald-400 font-bold outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº do Romaneio / Conhecimento:</label>
+                        <input type="text" id="numRomaneio" placeholder="Ex: ROM-88712" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-emerald-500 text-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Foto / Digitalização do Romaneio Assinado:</label>
+                        <input type="file" id="fotoRomaneio" accept="image/*" onchange="previewFotoRomaneio(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white bg-slate-950 rounded-xl border border-slate-800">
+                    </div>
+                </div>
 
-          if status_pasta_atual == "1a Contagem":
-            matches_pendentes = [
-                row_m
-                for _, row_m in matches_codigo.iterrows()
-                if (
-                    f"{str(row_m['lote']).strip().upper() if pd.notna(row_m['lote']) and str(row_m['lote']).lower() != 'nan' else ''}_{str(row_m['ativo']).strip().upper() if pd.notna(row_m['ativo']) and str(row_m['ativo']).lower() != 'nan' else ''}"
-                    not in set_ja_contados_1a
-                )
-            ]
-            if not matches_pendentes:
-              st.success(
-                  f"🎉 **Todos os ativos/lotes do produto/lote {codigo_bipado}"
-                  " já foram contabilizados nesta 1ª fase!**"
-              )
-              pode_exibir_form = False
-            else:
-              matches_para_usar = pd.DataFrame(matches_pendentes)
+                <div class="flex justify-end border-t border-slate-800/80 pt-3">
+                    <button onclick="finalizarRomaneio()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition">
+                        <i class="fa-solid fa-check"></i> Baixar e Concluir Romaneio (Status: Romaneio Assinado)
+                    </button>
+                </div>
+            </div>
+        </div>
 
-          elif status_pasta_atual == "2a Contagem":
-            matches_liberados = [
-                row_m
-                for _, row_m in matches_codigo.iterrows()
-                if (
-                    f"{str(row_m['lote']).strip().upper() if pd.notna(row_m['lote']) and str(row_m['lote']).lower() != 'nan' else ''}_{str(row_m['ativo']).strip().upper() if pd.notna(row_m['ativo']) and str(row_m['ativo']).lower() != 'nan' else ''}"
-                    in set_liberados_2a
-                )
-            ]
+    </main>
 
-            if not matches_liberados:
-              st.info(
-                  f"✅ **O item {codigo_bipado} bateu 100% (Saldo Físico ="
-                  " Sistema) na 1ª Contagem.** Não há liberação do gestor para"
-                  " alterar este valor na 2ª fase."
-              )
-              pode_exibir_form = False
-            else:
-              matches_para_usar = pd.DataFrame(matches_liberados)
+    <!-- MODAL CONFIGURAÇÃO GOOGLE SHEETS -->
+    <div id="modalConfig" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-base text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Conexão Google Sheets (Nuvem)
+                </h3>
+                <button onclick="fecharModalConfig()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
 
-          if pode_exibir_form:
-            if len(matches_para_usar) > 1:
-              opcoes_item = [
-                  f"Ativo: {str(r['ativo']).strip() if pd.notna(r['ativo']) and str(r['ativo']).lower()!='nan' and str(r['ativo']).strip()!='' else 'Sem Ativo'} | Lote: {str(r['lote']).strip() if pd.notna(r['lote']) and str(r['lote']).lower()!='nan' and str(r['lote']).strip()!='' else 'Sem Lote'} (ID Linha #{r['id']})"
-                  for _, r in matches_para_usar.iterrows()
-              ]
-              item_sel_opcao = st.selectbox(
-                  "Escolha o item específico PENDENTE:", opcoes_item
-              )
-              item = matches_para_usar[
-                  matches_para_usar['id']
-                  == int(
-                      item_sel_opcao.split("(ID Linha #")[1]
-                      .replace(")", "")
-                      .strip()
-                  )
-              ].iloc[0]
-            else:
-              item = matches_para_usar.iloc[0]
+            <p class="text-xs text-slate-300 leading-relaxed">
+                URL do Web App do seu Google Apps Script para salvamento automático no Google Sheets e Google Drive.
+            </p>
 
-            lote_auto = (
-                str(item['lote']).strip()
-                if pd.notna(item['lote'])
-                and str(item['lote']).lower() != 'nan'
-                and str(item['lote']).strip() != ''
-                else ''
-            )
-            ativo_auto = (
-                str(item['ativo']).strip()
-                if pd.notna(item['ativo'])
-                and str(item['ativo']).lower() != 'nan'
-                and str(item['ativo']).strip() != ''
-                else ''
-            )
-            id_est_limpo = (
-                str(item['id_estoque_fisico']).strip()
-                if pd.notna(item['id_estoque_fisico'])
-                and str(item['id_estoque_fisico']).strip() != ''
-                else extrair_id_estoque_do_nome(inventario_selected_obj['nome'])
-            )
-            desc_est_limpo = (
-                str(item['desc_estoque_fisico']).strip()
-                if pd.notna(item['desc_estoque_fisico'])
-                and str(item['desc_estoque_fisico']).strip() != ''
-                else MAPA_ESTOQUES_DESC.get(id_est_limpo, 'ESTOQUE FÍSICO')
-            )
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1.5">URL do Web App do Google Apps Script:</label>
+                <input type="text" id="urlGoogleScript" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 outline-none focus:border-emerald-500">
+            </div>
 
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Cód. Produto", str(item['cod_produto']))
-            c2.metric("Lote", lote_auto or "—")
-            c3.metric("Ativo", ativo_auto or "—")
+            <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                <button onclick="guardarConfigScript()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition">
+                    Guardar Conexão
+                </button>
+            </div>
+        </div>
+    </div>
 
-            st.markdown(
-                f'<div class="caixa-descricao-produto">📦 Descrição:'
-                f' {item["desc_produto"]}</div>',
-                unsafe_allow_html=True,
-            )
-            st.info(
-                f"📍 **Estoque Físico:** {desc_est_limpo} (ID: {id_est_limpo}) |"
-                f" **Unidade:** {item['unid_medida']} | **Status:**"
-                f" {status_pasta_atual}"
-            )
-
-            with st.form("form_lancar_qtd", clear_on_submit=True):
-              qtd_fisica = st.number_input(
-                  "📦 Nova Quantidade Contada Fisicamente:",
-                  min_value=0,
-                  step=1,
-                  value=0,
-              )
-              confirma_zero = st.checkbox(
-                  "⚠️ Marque se este item REALMENTE NÃO EXISTE no estoque (Saldo"
-                  " Zero)"
-              )
-              obs = st.text_input("Observação (opcional)")
-
-              if st.form_submit_button(
-                  "⚡ Registrar Contagem",
-                  type="primary",
-                  use_container_width=True,
-              ):
-                if qtd_fisica == 0 and not confirma_zero:
-                  st.error(
-                      "⚠️ Para salvar quantidade 0, marque a confirmação"
-                      " amarela!"
-                  )
-                else:
-                  qtd_sys = int(item['qtd_estoque'])
-                  dif = qtd_fisica - qtd_sys
-                  data_hora_agora = datetime.datetime.now().strftime(
-                      "%Y-%m-%d %H:%M:%S"
-                  )
-
-                  if status_pasta_atual == "2a Contagem":
-                    idx_existente = df_liberados_2a[
-                        (
-                            df_liberados_2a['lote']
-                            .fillna('')
-                            .str.strip()
-                            .str.upper()
-                            == lote_auto.upper()
-                        )
-                        & (
-                            df_liberados_2a['ativo']
-                            .fillna('')
-                            .str.strip()
-                            .str.upper()
-                            == ativo_auto.upper()
-                        )
-                    ].index
-
-                    if not idx_existente.empty:
-                      i_target = idx_existente[0]
-                      db_ram["contagens"].loc[i_target, 'qtd_contada'] = (
-                          qtd_fisica
-                      )
-                      db_ram["contagens"].loc[i_target, 'diferenca'] = dif
-                      db_ram["contagens"].loc[
-                          i_target, 'fase_contagem'
-                      ] = '2a Contagem Concluida'
-                      db_ram["contagens"].loc[i_target, 'data_hora'] = (
-                          data_hora_agora
-                      )
-                      db_ram["contagens"].loc[i_target, 'operador'] = (
-                          st.session_state.operador
-                      )
-                      if obs.strip():
-                        obs_antiga = str(
-                            db_ram["contagens"].loc[i_target, 'observacao']
-                        )
-                        db_ram["contagens"].loc[i_target, 'observacao'] = (
-                            f"{obs_antiga} | Obs Recontagem: {obs.strip()}"
-                        )
-                  else:
-                    novo_id_cnt = len(db_ram["contagens"]) + 1
-                    db_ram["contagens"] = pd.concat([
-                        db_ram["contagens"],
-                        pd.DataFrame([{
-                            'id': novo_id_cnt,
-                            'inventario_id': id_pasta_limpo_base,
-                            'id_estoque': id_est_limpo,
-                            'desc_estoque': desc_est_limpo,
-                            'cod_produto': str(item['cod_produto']),
-                            'desc_produto': str(item['desc_produto']),
-                            'unid_medida': str(item['unid_medida']),
-                            'qtd_sistema': qtd_sys,
-                            'qtd_contada': qtd_fisica,
-                            'diferenca': dif,
-                            'ativo': ativo_auto,
-                            'observacao': obs,
-                            'operador': st.session_state.operador,
-                            'data_hora': data_hora_agora,
-                            'lote': lote_auto,
-                            'fase_contagem': '1a Contagem',
-                        }]),
-                    ], ignore_index=True)
-
-                  st.session_state.contador_reset += 1
-                  st.toast("⚡ Contagem Registrada!", icon="✅")
-                  st.rerun()
-
-  # --- ABA 2: LANÇAMENTOS E ESPELHO BASE ---
-  with aba_lancamentos:
-    sub_aba1, sub_aba2 = st.tabs([
-        "📋 Meus Lançamentos Nesta Pasta",
-        "📄 Espelho Base do Saldo (Status Visual)",
-    ])
-    with sub_aba1:
-      df_minhas = db_ram["contagens"][
-          db_ram["contagens"]['inventario_id'].isin(
-              [id_pasta_limpo_base, f"#{id_pasta_limpo_base}"]
-          )
-      ]
-
-      if not df_minhas.empty:
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Lançamentos Totais", len(df_minhas))
-        m2.metric(
-            "Com Divergência", len(df_minhas[df_minhas['diferenca'] != 0])
-        )
-        m3.metric(
-            "Total de Peças Contadas", int(df_minhas['qtd_contada'].sum())
-        )
-        st.download_button(
-            "📥 Exportar Lançamentos Filtrados para Excel",
-            converter_para_excel(df_minhas),
-            file_name=f"contagem_pasta_{id_pasta_limpo_base}.xlsx",
-        )
-        st.dataframe(
-            df_minhas[[
-                'cod_produto',
-                'desc_produto',
-                'desc_estoque',
-                'qtd_sistema',
-                'qtd_contada',
-                'diferenca',
-                'ativo',
-                'lote',
-                'observacao',
-                'operador',
-                'data_hora',
-                'fase_contagem',
-            ]],
-            use_container_width=True,
-            hide_index=True,
-        )
-      else:
-        st.info("Nenhum lançamento registrado nesta pasta.")
-
-    with sub_aba2:
-      if not base_sistema_atual.empty:
-        df_cnts_p = db_ram["contagens"][
-            db_ram["contagens"]['inventario_id'].isin(
-                [id_pasta_limpo_base, f"#{id_pasta_limpo_base}"]
-            )
-        ]
-        mapa_contados = {
-            f"{str(r['cod_produto']).upper().strip()}_{str(r['lote']).upper().strip() if pd.notna(r['lote']) and str(r['lote']).lower()!='nan' else ''}_{str(r['ativo']).upper().strip() if pd.notna(r['ativo']) and str(r['ativo']).lower()!='nan' else ''}": (
-                r['operador']
-            )
-            for _, r in df_cnts_p.iterrows()
+    <!-- SCRIPT DE LÓGICA E FUNCIONAMENTO -->
+    <script>
+        let usuariosCadastrados = JSON.parse(localStorage.getItem('sgt_usuarios_db') || '[]');
+        
+        if (!usuariosCadastrados.some(u => u.user === 'admin@tel.com.br')) {
+            usuariosCadastrados.push({
+                nome: 'Administrador',
+                cpf: '00000000000',
+                user: 'admin@tel.com.br',
+                pass: '123',
+                funcao: 'Administrador'
+            });
+            localStorage.setItem('sgt_usuarios_db', JSON.stringify(usuariosCadastrados));
         }
 
-        def obter_status(row):
-          c, l, a = (
-              str(row['cod_produto']).upper().strip(),
-              (
-                  str(row['lote']).upper().strip()
-                  if pd.notna(row['lote']) and str(row['lote']).lower() != 'nan'
-                  else ""
-              ),
-              (
-                  str(row['ativo']).upper().strip()
-                  if pd.notna(row['ativo'])
-                  and str(row['ativo']).lower() != 'nan'
-                  else ""
-              ),
-          )
-          key = f"{c}_{l}_{a}"
-          if key in mapa_contados:
-            return f"🟩 Contabilizado por ({mapa_contados[key]})"
-          return "Não Contado"
+        let usuarioAtivo = JSON.parse(localStorage.getItem('sgt_usuario_ativo') || 'null');
 
-        df_espelho = base_sistema_atual.copy()
-        df_espelho['Status de Contagem'] = df_espelho.apply(
-            obter_status, axis=1
-        )
-        st.dataframe(
-            df_espelho[[
-                'Status de Contagem',
-                'cod_produto',
-                'desc_produto',
-                'desc_estoque_fisico',
-                'unid_medida',
-                'qtd_estoque',
-                'id_estoque_fisico',
-                'lote',
-                'ativo',
-            ]],
-            use_container_width=True,
-            hide_index=True,
-        )
-      else:
-        st.info("Nenhuma base carregada.")
+        let transferenciaAtual = {
+            numero: '',
+            origem: '',
+            destino: '',
+            status: 'Pendente',
+            itens: [],
+            fotosCarga: [],
+            obsCarga: '',
+            romaneio: '',
+            fotoRomaneio: ''
+        };
 
-  # --- ABA 3: DESEMPENHO E ACURACIDADE ---
-  with aba_desempenho:
-    sub_d1, sub_d2 = st.tabs([
-        "🔴 Desempenho & Prazos por Estoque",
-        "📈 Acuracidade Auditada pelo Supervisor",
-    ])
-    with sub_d1:
-      st.subheader("🏆 Status de Atualização dos Estoques Físicos")
-      mapa_datas = {}
-      df_cnts_todas = db_ram["contagens"]
+        window.onload = function() {
+            if (usuarioAtivo && usuarioAtivo.nome) {
+                document.getElementById('telaLogin').classList.add('hidden');
+                atualizarHeaderUsuario();
+                restaurarRascunhoSeExistir();
+            } else {
+                document.getElementById('telaLogin').classList.remove('hidden');
+            }
+        };
 
-      if not df_cnts_todas.empty:
-        for est_i, grp in df_cnts_todas.groupby('id_estoque'):
-          mapa_datas[str(est_i).strip()] = str(grp['data_hora'].max())
-
-      linhas_desempenho, hoje = [], datetime.datetime.now()
-      b_count, a_count, c_count = 0, 0, 0
-
-      for est in LISTA_ESTOQUES_FIXA:
-        est_id = str(est["id"]).strip()
-        u_data = mapa_datas.get(est_id, None)
-        if u_data:
-          try:
-            str_dt = str(u_data).split(".")[0]
-            if len(str_dt) == 10:
-              str_dt += " 12:00:00"
-            dt = datetime.datetime.strptime(str_dt, "%Y-%m-%d %H:%M:%S")
-            dias, dt_fmt = (hoje - dt).days, dt.strftime("%d/%m/%Y %H:%M")
-          except Exception:
-            dias, dt_fmt = 999, "Sem histórico"
-        else:
-          dias, dt_fmt = 999, "Nunca Contado"
-
-        if dias <= 7:
-          status, b_count = "🟢 Em Dia", b_count + 1
-        elif dias <= 14:
-          status, a_count = "🟡 Necessário Auditar", a_count + 1
-        else:
-          status, c_count = "🔴 Crítico (+2 semanas)", c_count + 1
-
-        linhas_desempenho.append({
-            "Id. Estoque": est_id,
-            "Descrição do Estoque Físico": est["desc"],
-            "Última Contagem": dt_fmt,
-            "Dias Sem Contar": dias if dias != 999 else 999,
-            "Criticidade": status,
-        })
-
-      df_desempenho_full = pd.DataFrame(linhas_desempenho)
-      k1, k2, k3 = st.columns(3)
-      k1.metric("🟢 Em Dia (até 7 dias)", b_count)
-      k2.metric("🟡 Necessário Auditar (8 a 14 dias)", a_count)
-      k3.metric("🔴 Crítico (+14 dias)", c_count)
-
-      col_f_stat, col_f_busca = st.columns([1, 1])
-      filtro_criticidade = col_f_stat.selectbox(
-          "🎯 Filtrar por Criticidade:",
-          [
-              "Todos os Estoques",
-              "🟢 Em Dia",
-              "🟡 Necessário Auditar",
-              "🔴 Crítico (+2 semanas)",
-          ],
-      )
-      busca_estoque = col_f_busca.text_input(
-          "🔍 Pesquisar Estoque por Código ou Nome:"
-      )
-
-      df_exibir = df_desempenho_full.copy()
-      if filtro_criticidade != "Todos os Estoques":
-        df_exibir = df_exibir[df_exibir['Criticidade'] == filtro_criticidade]
-      if busca_estoque.strip():
-        termo = busca_estoque.strip().lower()
-        df_exibir = df_exibir[
-            df_exibir['Id. Estoque'].str.lower().str.contains(termo)
-            | df_exibir['Descrição do Estoque Físico']
-            .str.lower()
-            .str.contains(termo)
-        ]
-
-      df_exibir['Dias Sem Contar'] = df_exibir['Dias Sem Contar'].apply(
-          lambda x: "—" if x == 999 else x
-      )
-      st.dataframe(
-          df_exibir.sort_values(
-              by=['Criticidade', 'Id. Estoque'], ascending=[False, True]
-          ),
-          use_container_width=True,
-          hide_index=True,
-      )
-
-    with sub_d2:
-      st.subheader("📈 Tabela de Acuracidade Geral por Depósito")
-      df_auds = db_ram["auditorias_sup"]
-
-      if df_auds.empty:
-        st.info("💡 Nenhuma amostragem coletada pelo supervisor.")
-      else:
-        df_temp_auds = df_auds.copy()
-
-        def extrair_codigo_deposito_correto(row):
-          row_str = " ".join([str(v) for v in row.values]).upper()
-          for k_id, v_desc in MAPA_ESTOQUES_DESC.items():
-            if v_desc.upper() in row_str or k_id in row_str:
-              return k_id
-
-          inv_sup_id = str(row.get('inventario_id', ''))
-          df_inv_s = db_ram["inventarios_sup"]
-          inv_match = df_inv_s[df_inv_s['id'] == inv_sup_id]
-          if not inv_match.empty:
-            ext_nome = extrair_id_estoque_do_nome(inv_match.iloc[0]['nome'])
-            if ext_nome:
-              return ext_nome
-
-          return "1118"
-
-        df_temp_auds['id_deposito_oficial'] = df_temp_auds.apply(
-            extrair_codigo_deposito_correto, axis=1
-        )
-
-        ultimas_pastas = {}
-        for dep_id, grp in df_temp_auds.groupby('id_deposito_oficial'):
-          ultimas_pastas[dep_id] = grp['inventario_id'].max()
-
-        linhas_acu_finais = []
-        for dep_id, pasta_id_alvo in ultimas_pastas.items():
-          grp = df_temp_auds[
-              (df_temp_auds['id_deposito_oficial'] == dep_id)
-              & (df_temp_auds['inventario_id'] == pasta_id_alvo)
-          ]
-          dep_id_clean = str(dep_id).strip()
-          desc_dep = MAPA_ESTOQUES_DESC.get(dep_id_clean, "JBA - PROPRIO GERAL")
-
-          tot = len(grp)
-          acertos_saldo = len(
-              grp[pd.to_numeric(grp['diferenca'], errors='coerce') == 0]
-          )
-          acertos_etq = len(
-              grp[
-                  grp['etiqueta_correta']
-                  .astype(str)
-                  .str.strip()
-                  .str.lower()
-                  == "sim"
-              ]
-          )
-          acertos_loc = len(
-              grp[
-                  grp['localizacao_correta']
-                  .astype(str)
-                  .str.strip()
-                  .str.lower()
-                  == "sim"
-              ]
-          )
-
-          pct_saldo = (acertos_saldo / tot) * 100 if tot > 0 else 0.0
-          pct_etq = (acertos_etq / tot) * 100 if tot > 0 else 0.0
-          pct_loc = (acertos_loc / tot) * 100 if tot > 0 else 0.0
-
-          u_audit_raw = (
-              str(grp['data_hora'].max()) if 'data_hora' in grp.columns else "—"
-          )
-          u_audit = (
-              u_audit_raw.split(" ")[0].split("T")[0]
-              if u_audit_raw != "—"
-              else "—"
-          )
-
-          linhas_acu_finais.append({
-              "CÓDIGO ESTOQUE": dep_id_clean,
-              "DESCRIÇÃO DO ESTOQUE": desc_dep,
-              "ACURACIDADE SALDO": f"{'🟢' if pct_saldo==100 else '🔴'} {pct_saldo:.1f}%",
-              "ACURACIDADE ETIQUETAS": f"{'🟢' if pct_etq==100 else '🔴'} {pct_etq:.1f}%",
-              "ACURACIDADE LOCALIZAÇÃO": f"{'🟢' if pct_loc==100 else '🔴'} {pct_loc:.1f}%",
-              "ITENS AUDITADOS": tot,
-              "ÚLTIMA AUDITORIA": u_audit,
-          })
-
-        st.dataframe(
-            pd.DataFrame(linhas_acu_finais),
-            use_container_width=True,
-            hide_index=True,
-        )
-
-      st.markdown("---")
-      if not df_inventarios_sup.empty:
-        for _, inv_s in df_inventarios_sup.iterrows():
-          df_hist_sup = df_auds[df_auds['inventario_id'] == inv_s['id']]
-          c_exp, c_del = st.columns([8, 2])
-          with c_exp:
-            with st.expander(
-                f"📁 Pasta {inv_s['id']} – {inv_s['nome']} | Data:"
-                f" {inv_s['data']} | Status: {inv_s['status']} ({len(df_hist_sup)}"
-                " itens auditados)"
-            ):
-              if not df_hist_sup.empty:
-                st.download_button(
-                    "📥 Exportar Esta Auditoria para Excel",
-                    converter_para_excel(df_hist_sup),
-                    file_name=f"auditoria_{inv_s['id']}.xlsx",
-                    key=f"dl_sup_acu_{inv_s['id']}",
-                )
-                st.dataframe(
-                    df_hist_sup, use_container_width=True, hide_index=True
-                )
-              else:
-                st.info("Nenhum item auditado nesta pasta.")
-          with c_del:
-            if eh_supervisor and st.button(
-                "🗑️ Excluir Pasta",
-                key=f"del_sup_f_{inv_s['id']}",
-                use_container_width=True,
-            ):
-              db_ram["inventarios_sup"] = db_ram["inventarios_sup"][
-                  db_ram["inventarios_sup"]['id'] != inv_s['id']
-              ]
-              db_ram["auditorias_sup"] = db_ram["auditorias_sup"][
-                  db_ram["auditorias_sup"]['inventario_id'] != inv_s['id']
-              ]
-              st.rerun()
-
-  # --- ABA 4: SGT - TRANSFERÊNCIAS DE ESTOQUE ---
-  with aba_sgt:
-    st.title("🚛 SGT - Guardião Logístico (Conferência de Transferências)")
-    sub_sgt1, sub_sgt2, sub_sgt3 = st.tabs([
-        "🏗️ 1. Pátio (Almoxarife)",
-        "🚚 2. Embarque (Encarregado)",
-        "📋 3. Romaneio Assinado (ADM)",
-    ])
-
-    trf = db_ram["transferencia_ativa"]
-
-    with sub_sgt1:
-      st.subheader("Etapa 1. Importar Transferência do ERP & Conferência")
-      col_f1, col_f2 = st.columns(2)
-      arq_trf = col_f1.file_uploader(
-          "Upload da Transferência (.xlsx)",
-          type=["xlsx", "xls"],
-          key="up_trf_patio",
-      )
-
-      if arq_trf:
-        df_trf_u = pd.read_excel(arq_trf)
-        if not df_trf_u.empty:
-          st.success(
-              f"📌 {len(df_trf_u)} itens lidos da planilha de transferência."
-          )
-          if col_f2.button("📥 Carregar Itens para Conferência", type="primary"):
-            trf["itens"] = []
-            for _, r_t in df_trf_u.iterrows():
-              trf["itens"].append({
-                  "codigo": str(r_t.iloc[24]) if len(r_t) > 24 else "—",
-                  "descricao": str(r_t.iloc[25]) if len(r_t) > 25 else "—",
-                  "qtdERP": (
-                      int(pd.to_numeric(r_t.iloc[28], errors='coerce') or 1)
-                      if len(r_t) > 28
-                      else 1
-                  ),
-                  "qtdConferida": (
-                      int(pd.to_numeric(r_t.iloc[28], errors='coerce') or 1)
-                      if len(r_t) > 28
-                      else 1
-                  ),
-                  "obs": "",
-                  "fotos": [],
-              })
-            st.rerun()
-
-      col_t1, col_t2, col_t3 = st.columns(3)
-      trf["numero"] = col_t1.text_input(
-          "Nº Transferência / Guia:", value=trf["numero"]
-      )
-      trf["origem"] = col_t2.text_input("Filial Origem:", value=trf["origem"])
-      trf["destino"] = col_t3.text_input("Filial Destino:", value=trf["destino"])
-
-      if trf["itens"]:
-        st.markdown("---")
-        st.write("📋 **Lista de Itens para Evidenciação e Fotos:**")
-        for idx, it in enumerate(trf["itens"]):
-          c_c1, c_c2, c_c3, c_c4 = st.columns([2, 4, 2, 4])
-          c_c1.write(f"**Cód:** {it['codigo']}")
-          c_c2.write(f"**Desc:** {it['descricao']}")
-          it['qtdConferida'] = c_c3.number_input(
-              f"Qtd Conf (Item {idx+1})",
-              value=it['qtdConferida'],
-              key=f"q_trf_{idx}",
-          )
-          it['obs'] = c_c4.text_input(
-              f"Obs/Avaria (Item {idx+1})", value=it['obs'], key=f"o_trf_{idx}"
-          )
-
-          fotos_item_up = st.file_uploader(
-              f"Fotos Item {it['codigo']} (Até 5):",
-              accept_multiple_files=True,
-              type=["png", "jpg", "jpeg"],
-              key=f"f_item_{idx}",
-          )
-          if fotos_item_up:
-            it['fotos'] = []
-            for f_it in fotos_item_up[:5]:
-              enc_it = base64.b64encode(f_it.read()).decode()
-              it['fotos'].append(f"data:image/jpeg;base64,{enc_it}")
-
-        if st.button(
-            "🚀 Concluir Separação (Enviar Pátio)",
-            type="primary",
-            use_container_width=True,
-        ):
-          trf["status"] = "Aguardando Embarque"
-          payload_envio = {
-              "numero": trf["numero"],
-              "origem": trf["origem"],
-              "destino": trf["destino"],
-              "status": trf["status"],
-              "operadorPatio": st.session_state.operador,
-              "itens": trf["itens"],
-          }
-          enviar_dados_script_google(payload_envio)
-          st.success("✅ Separação concluída e salva na planilha!")
-
-    with sub_sgt2:
-      st.subheader("Etapa 2. Liberação de Carga & Caminhão")
-      trf["numero"] = st.text_input(
-          "Nº da Transferência a Embarcar:",
-          value=trf["numero"],
-          key="num_trf_emb",
-      )
-      trf["obsCarga"] = st.text_area(
-          "Observações da Carga (Placa, Lacre, Baú):", value=trf["obsCarga"]
-      )
-
-      fotos_carga = st.file_uploader(
-          "Fotos da Carga Embalada / Caminhão (Até 5 fotos):",
-          accept_multiple_files=True,
-          type=["png", "jpg", "jpeg"],
-      )
-      if fotos_carga:
-        trf["fotosCarga"] = []
-        for f_c in fotos_carga[:5]:
-          encoded = base64.b64encode(f_c.read()).decode()
-          trf["fotosCarga"].append(f"data:image/jpeg;base64,{encoded}")
-
-      if st.button(
-          "🚚 Autorizar e Concluir Embarque",
-          type="primary",
-          use_container_width=True,
-      ):
-        payload_embarque = {
-            "numero": trf["numero"],
-            "status": "Embarcado / Aguardando Romaneio",
-            "obsCarga": trf["obsCarga"],
-            "fotosCarga": trf["fotosCarga"],
-            "operadorEmbarque": st.session_state.operador,
+        function alternarVisibilidadeSenha(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-regular fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-regular fa-eye';
+            }
         }
-        enviar_dados_script_google(payload_embarque)
-        st.success("✅ Embarque autorizado e enviado!")
 
-    with sub_sgt3:
-      st.subheader("Etapa 3. Lançamento de Romaneio Assinado")
-      col_r1, col_r2 = st.columns(2)
-      trf["numero"] = col_r1.text_input(
-          "Nº Transferência:", value=trf["numero"], key="num_trf_rom"
-      )
-      trf["romaneio"] = col_r2.text_input(
-          "Nº do Romaneio / Conhecimento:", value=trf["romaneio"]
-      )
+        function efetuarLogin() {
+            const user = document.getElementById('loginUser').value.trim().toLowerCase();
+            const pass = document.getElementById('loginPass').value.trim();
 
-      foto_rom = st.file_uploader(
-          "Foto/Digitalização do Romaneio Assinado:",
-          type=["png", "jpg", "jpeg"],
-      )
-      if foto_rom:
-        encoded_rom = base64.b64encode(foto_rom.read()).decode()
-        trf["fotoRomaneio"] = f"data:image/jpeg;base64,{encoded_rom}"
+            if (!user || !pass) {
+                alert('Informe seu e-mail/CPF e senha.');
+                return;
+            }
 
-      if st.button(
-          "🔒 Concluir Romaneio Assinado",
-          type="primary",
-          use_container_width=True,
-      ):
-        payload_rom = {
-            "numero": trf["numero"],
-            "romaneio": trf["romaneio"],
-            "status": "Romaneio Assinado",
-            "fotoRomaneio": trf["fotoRomaneio"],
-            "operadorADM": st.session_state.operador,
+            const encontrado = usuariosCadastrados.find(u => (u.user.toLowerCase() === user || u.cpf === user) && u.pass === pass);
+
+            if (encontrado) {
+                usuarioAtivo = encontrado;
+                localStorage.setItem('sgt_usuario_ativo', JSON.stringify(usuarioAtivo));
+                document.getElementById('telaLogin').classList.add('hidden');
+                document.getElementById('loginUser').value = '';
+                document.getElementById('loginPass').value = '';
+                atualizarHeaderUsuario();
+                restaurarRascunhoSeExistir();
+            } else {
+                alert('Usuário/E-mail ou Senha incorretos!');
+            }
         }
-        enviar_dados_script_google(payload_rom)
-        st.success("✅ Romaneio finalizado e gravado com sucesso!")
 
-  # --- ABA 5: HISTÓRICO GERAL ---
-  with aba_historico:
-    st.title("📁 Arquivo Geral de Movimentações")
-    if df_inventarios.empty:
-      st.info("Nenhum inventário registrado.")
-    else:
-      df_inv_ordenados = df_inventarios.copy()
-      df_inv_ordenados['id_num'] = (
-          df_inv_ordenados['id']
-          .astype(str)
-          .str.replace('#', '', regex=False)
-          .astype(int)
-      )
-      df_inv_ordenados = df_inv_ordenados.sort_values(
-          by=['data', 'id_num'], ascending=[False, False]
-      )
+        function exibirTelaCadastro() {
+            document.getElementById('telaLogin').classList.add('hidden');
+            document.getElementById('telaCadastro').classList.remove('hidden');
+        }
 
-      itens_por_pagina = 10
-      total_itens = len(df_inv_ordenados)
-      total_paginas = max(
-          1, (total_itens + itens_por_pagina - 1) // itens_por_pagina
-      )
+        function exibirTelaLogin() {
+            document.getElementById('telaCadastro').classList.add('hidden');
+            document.getElementById('telaLogin').classList.remove('hidden');
+        }
 
-      if st.session_state.pagina_historico > total_paginas:
-        st.session_state.pagina_historico = total_paginas
+        function finalizarCadastro() {
+            const nome = document.getElementById('cadNome').value.trim();
+            const cpf = document.getElementById('cadCPF').value.trim();
+            const email = document.getElementById('cadEmail').value.trim().toLowerCase();
+            const funcao = document.getElementById('cadFuncao').value;
+            const pass = document.getElementById('cadPass').value;
+            const passConf = document.getElementById('cadPassConf').value;
 
-      inicio_idx = (st.session_state.pagina_historico - 1) * itens_por_pagina
-      fim_idx = inicio_idx + itens_por_pagina
-      fatia_pastas = df_inv_ordenados.iloc[inicio_idx:fim_idx]
+            if (!nome || !email || !pass) {
+                alert('Por favor, preencha Nome, E-mail e Senha.');
+                return;
+            }
 
-      for idx, inv in fatia_pastas.iterrows():
-        id_proc = str(inv['id']).replace('#', '').strip()
-        df_h = db_ram["contagens"][
-            db_ram["contagens"]['inventario_id'].isin(
-                [id_proc, f"#{id_proc}"]
-            )
-        ]
-        tot_reg, acu_reg = len(df_h), inv.get('acuracidade_final', '—')
+            if (pass !== passConf) {
+                alert('As senhas não coincidem!');
+                return;
+            }
 
-        c_exp, c_del = st.columns([8, 2])
-        with c_exp:
-          with st.expander(
-              f"📁 Pasta {inv['id']} - {inv['nome']} | Data: {inv['data']} |"
-              f" Status: {inv['status']} | Acuracidade: {acu_reg} ({tot_reg}"
-              " itens contados)"
-          ):
-            if not df_h.empty:
-              st.download_button(
-                  "📥 Baixar Planilha de Lançamentos (.xlsx)",
-                  converter_para_excel(df_h),
-                  file_name=f"inventario_{id_proc}.xlsx",
-                  key=f"dl_hist_{id_proc}",
-              )
-              st.dataframe(
-                  df_h[[
-                      'id',
-                      'inventario_id',
-                      'id_estoque',
-                      'desc_estoque',
-                      'cod_produto',
-                      'desc_produto',
-                      'unid_medida',
-                      'qtd_sistema',
-                      'qtd_contada',
-                      'diferenca',
-                      'ativo',
-                      'lote',
-                      'observacao',
-                      'operador',
-                      'data_hora',
-                      'fase_contagem',
-                  ]],
-                  use_container_width=True,
-                  hide_index=True,
-              )
-            else:
-              st.info("Nenhum lançamento registrado nesta pasta.")
-        with c_del:
-          if eh_supervisor and st.button(
-              "🗑️ Excluir Pasta",
-              key=f"del_hist_inv_{inv['id']}",
-              use_container_width=True,
-          ):
-            db_ram["inventarios"] = db_ram["inventarios"][
-                db_ram["inventarios"]['id'] != inv['id']
-            ]
-            db_ram["contagens"] = db_ram["contagens"][
-                ~db_ram["contagens"]['inventario_id'].isin(
-                    [id_proc, f"#{id_proc}"]
-                )
-            ]
-            db_ram["itens_base"] = db_ram["itens_base"][
-                ~db_ram["itens_base"]['inventario_id'].isin(
-                    [id_proc, f"#{id_proc}"]
-                )
-            ]
-            st.rerun()
+            if (usuariosCadastrados.some(u => u.user === email)) {
+                alert('Este E-mail já está cadastrado.');
+                return;
+            }
 
-      st.markdown("---")
-      c_pag1, c_pag2, c_pag3 = st.columns([2, 3, 2])
-      with c_pag1:
-        if st.button(
-            "◀ Anterior",
-            disabled=(st.session_state.pagina_historico <= 1),
-            use_container_width=True,
-        ):
-          st.session_state.pagina_historico -= 1
-          st.rerun()
-      with c_pag2:
-        st.markdown(
-            "<h5 style='text-align: center; color: #666;'>Página"
-            f" {st.session_state.pagina_historico} de {total_paginas}"
-            f" ({total_itens} pastas no total)</h5>",
-            unsafe_allow_html=True,
-        )
-      with c_pag3:
-        if st.button(
-            "Próxima ▶",
-            disabled=(st.session_state.pagina_historico >= total_paginas),
-            use_container_width=True,
-        ):
-          st.session_state.pagina_historico += 1
-          st.rerun()
+            const novoUsuario = {
+                nome: nome,
+                cpf: cpf,
+                user: email,
+                pass: pass,
+                funcao: funcao
+            };
 
-  # --- ABA 6: CONSOLIDADOR DE PLANILHAS ---
-  with aba_consolidar:
-    st.title("📊 Consolidador de Planilhas (Excel Gerencial)")
-    st.info(
-        "💡 Faça o upload do seu arquivo acumulado de contagens (DATA_BASE"
-        " .xlsx) para gerar o relatório gerencial completo com a aba"
-        " 'Acuracidade' e abas por código de estoque."
-    )
+            usuariosCadastrados.push(novoUsuario);
+            localStorage.setItem('sgt_usuarios_db', JSON.stringify(usuariosCadastrados));
 
-    col_c1, col_c2 = st.columns(2)
-    with col_c1:
-      dt_ini_cons = st.date_input(
-          "📅 Data Inicial do Período:",
-          value=datetime.date.today() - datetime.timedelta(days=30),
-      )
-    with col_c2:
-      dt_fim_cons = st.date_input(
-          "📅 Data Final do Período:", value=datetime.date.today()
-      )
+            alert('Cadastro efetuado com sucesso! Faça login com a sua conta.');
+            
+            document.getElementById('cadNome').value = '';
+            document.getElementById('cadCPF').value = '';
+            document.getElementById('cadEmail').value = '';
+            document.getElementById('cadPass').value = '';
+            document.getElementById('cadPassConf').value = '';
 
-    arq_para_consolidar = st.file_uploader(
-        "Suba a planilha acumulada de contagens (DATA_BASE .xlsx)",
-        type=["xlsx"],
-        key="up_consolidar_tab",
-    )
+            exibirTelaLogin();
+        }
 
-    if arq_para_consolidar is not None:
-      df_carregado_cons = pd.read_excel(arq_para_consolidar)
-      st.success(
-          "📌 Planilha carregada com sucesso! Contém"
-          f" {len(df_carregado_cons)} registros."
-      )
+        function sairSistema() {
+            localStorage.removeItem('sgt_usuario_ativo');
+            usuarioAtivo = null;
+            document.getElementById('loginUser').value = '';
+            document.getElementById('loginPass').value = '';
+            document.getElementById('telaLogin').classList.remove('hidden');
+        }
 
-      if st.button(
-          "🚀 Gerar Excel Consolidado em Múltiplas Abas",
-          type="primary",
-          use_container_width=True,
-      ):
-        bytes_consolidado = gerar_relatorio_consolidado_excel(
-            df_carregado_cons, LISTA_ESTOQUES_FIXA
-        )
-        st.download_button(
-            label=(
-                "📥 BAIXAR EXCEL CONSOLIDADO"
-                f" ({dt_ini_cons.strftime('%d-%m-%Y')} a"
-                f" {dt_fim_cons.strftime('%d-%m-%Y')}).XLSX"
-            ),
-            data=bytes_consolidado,
-            file_name=(
-                "Relatorio_Gerencial_Consolidado_"
-                f"{dt_ini_cons.strftime('%Y-%m-%d')}_a_"
-                f"{dt_fim_cons.strftime('%Y-%m-%d')}.xlsx"
-            ),
-            mime=(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ),
-            use_container_width=True,
-        )
+        function atualizarHeaderUsuario() {
+            if (usuarioAtivo) {
+                document.getElementById('exibirUsuarioNome').textContent = usuarioAtivo.nome;
+                document.getElementById('exibirUsuarioFuncao').textContent = usuarioAtivo.funcao;
+            }
+        }
 
-  # --- ABA 7: GESTÃO ADM ---
-  if eh_supervisor and aba_adm is not None:
-    with aba_adm:
-      st.title("⚙️ Módulo de Gestão do Administrador")
-      opcao_adm = st.selectbox(
-          "Escolha o Módulo de Ação:",
-          [
-              "🚨 Liberar / Encerrar Divergências",
-              "🔬 Auditoria Amostral (Supervisor)",
-              "📊 Relatório Consolidado (Excel Gerencial)",
-              "👥 Gestão de Usuários & Senhas",
-          ],
-      )
-      st.markdown("---")
+        function mudarTela(tela) {
+            document.getElementById('telaPatio').classList.add('hidden');
+            document.getElementById('telaEmbarque').classList.add('hidden');
+            document.getElementById('telaRomaneio').classList.add('hidden');
 
-      if opcao_adm == "🚨 Liberar / Encerrar Divergências":
-        st.subheader("Tratamento de Erros de Contagem da Equipe")
+            document.getElementById('btnNavPatio').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
+            document.getElementById('btnNavEmbarque').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
+            document.getElementById('btnNavRomaneio').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
 
-        df_divs_todas = db_ram["contagens"][
-            (db_ram["contagens"]['diferenca'] != 0)
-            & (
-                ~db_ram["contagens"]['fase_contagem'].isin(
-                    ['2a Contagem', 'Encerrado com Divergencia']
-                )
-            )
-        ]
+            if(tela === 'patio') {
+                document.getElementById('telaPatio').classList.remove('hidden');
+                document.getElementById('btnNavPatio').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
+            } else if(tela === 'embarque') {
+                document.getElementById('telaEmbarque').classList.remove('hidden');
+                document.getElementById('btnNavEmbarque').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
+            } else if(tela === 'romaneio') {
+                document.getElementById('telaRomaneio').classList.remove('hidden');
+                document.getElementById('btnNavRomaneio').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
+            }
+        }
 
-        if df_divs_todas.empty:
-          st.success("🎉 Nenhuma divergência pendente de tratamento no momento!")
-        else:
-          opcoes_invs_div = df_divs_todas['inventario_id'].unique().tolist()
-          inv_alvo_sel = st.selectbox(
-              "📁 Selecione o Inventário/Pasta Com Divergência:",
-              [f"Pasta #{i}" for i in opcoes_invs_div],
-          )
-          id_pasta_div_target = inv_alvo_sel.replace("Pasta #", "").strip()
+        // AUTO-SAVE E RECUPERAÇÃO DE RASCUNHO
+        function salvarRascunhoAuto() {
+            if (transferenciaAtual && transferenciaAtual.itens && transferenciaAtual.itens.length > 0) {
+                transferenciaAtual.numero = document.getElementById('numTransferenciaPatio').value.trim();
+                transferenciaAtual.origem = document.getElementById('filialOrigem').value.trim();
+                transferenciaAtual.destino = document.getElementById('filialDestino').value.trim();
 
-          df_items_div = df_divs_todas[
-              df_divs_todas['inventario_id'] == id_pasta_div_target
-          ]
+                localStorage.setItem('sgt_rascunho_patio', JSON.stringify(transferenciaAtual));
+                document.getElementById('indicadorRascunho').innerHTML = '<i class="fa-solid fa-floppy-disk text-emerald-400"></i> Rascunho Salvo Auto';
+            }
+        }
 
-          mapa_items = {}
-          opcoes_items = []
-          for _, r_it in df_items_div.iterrows():
-            label_item = (
-                f"{r_it['cod_produto']} - {r_it['desc_produto']} (Dif:"
-                f" {r_it['diferenca']})"
-            )
-            opcoes_items.append(label_item)
-            mapa_items[label_item] = r_it
+        function restaurarRascunhoSeExistir() {
+            const rascunho = localStorage.getItem('sgt_rascunho_patio');
+            if (rascunho) {
+                try {
+                    const dados = JSON.parse(rascunho);
+                    if (dados && dados.itens && dados.itens.length > 0) {
+                        if (confirm(`Existe uma transferência pendente (Nº ${dados.numero || 'Sem Nº'}) salva em rascunho. Deseja restaurar as fotos e conferências?`)) {
+                            transferenciaAtual = dados;
+                            document.getElementById('numTransferenciaPatio').value = dados.numero || '';
+                            document.getElementById('filialOrigem').value = dados.origem || '';
+                            document.getElementById('filialDestino').value = dados.destino || '';
+                            renderizarTabelaItens();
+                            document.getElementById('indicadorRascunho').innerHTML = '<i class="fa-solid fa-clock-rotate-left text-amber-400"></i> Rascunho Restaurado';
+                        }
+                    }
+                } catch(e) {
+                    console.error('Erro ao restaurar rascunho:', e);
+                }
+            }
+        }
 
-          item_alvo_sel = st.selectbox(
-              "📦 Selecione o Item Com Divergência Nesta Pasta:", opcoes_items
-          )
-          row_item_alvo = mapa_items[item_alvo_sel]
+        function limparRascunhoPatio() {
+            localStorage.removeItem('sgt_rascunho_patio');
+            document.getElementById('indicadorRascunho').innerHTML = 'Nº TRF Lida da Coluna A (CODIGO)';
+        }
 
-          st.info(
-              f"📊 **Resumo do Item:** Sistema: **{row_item_alvo['qtd_sistema']}**"
-              f" | Contado: **{row_item_alvo['qtd_contada']}** | Diferença:"
-              f" **{row_item_alvo['diferenca']}** (Lançado por:"
-              f" {row_item_alvo['operador']})"
-          )
-          justificativa_adm = st.text_input(
-              "📝 Informe a justificativa/observação:", value="Divergente"
-          )
+        function detectarDadosExcel(input) {
+            if (!input.files.length) return;
+            const file = input.files[0];
 
-          col_act1, col_act2 = st.columns(2)
-          with col_act1:
-            if st.button(
-                "🚨 Abrir 2ª Contagem para Almoxarife",
-                type="primary",
-                use_container_width=True,
-            ):
-              obs_final = (
-                  f"ADM ({st.session_state.operador}): [LIBERADO 2ª CONTAGEM] -"
-                  f" {justificativa_adm.strip()}"
-              )
-              idx_target = db_ram["contagens"][
-                  db_ram["contagens"]['id'] == row_item_alvo['id']
-              ].index
-              db_ram["contagens"].loc[idx_target, 'fase_contagem'] = (
-                  '2a Contagem'
-              )
-              db_ram["contagens"].loc[idx_target, 'observacao'] = obs_final
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
 
-              idx_inv = db_ram["inventarios"][
-                  db_ram["inventarios"]['id'].str.replace('#', '')
-                  == id_pasta_div_target
-              ].index
-              db_ram["inventarios"].loc[idx_inv, 'status'] = '2a Contagem'
-              st.success("✅ Enviado para 2ª Contagem!")
-              st.rerun()
+                if (jsonData.length > 1) {
+                    const row1 = jsonData[1];
+                    let rawTrf = row1[0] !== undefined ? String(row1[0]).trim() : '';
+                    let numLimpo = rawTrf.split(',')[0].replace(/\D/g, '');
 
-          with col_act2:
-            if st.button(
-                "🔒 Finalizar e Manter Divergência Atual",
-                use_container_width=True,
-            ):
-              obs_final = (
-                  f"ADM ({st.session_state.operador}): [ENCERRADO COM"
-                  f" DIVERGÊNCIA] - {justificativa_adm.strip()}"
-              )
-              idx_target = db_ram["contagens"][
-                  db_ram["contagens"]['id'] == row_item_alvo['id']
-              ].index
-              db_ram["contagens"].loc[idx_target, 'fase_contagem'] = (
-                  'Encerrado com Divergencia'
-              )
-              db_ram["contagens"].loc[idx_target, 'observacao'] = obs_final
-              st.success("✅ Divergência encerrada!")
-              st.rerun()
+                    if (numLimpo) {
+                        document.getElementById('numTransferenciaPatio').value = numLimpo;
+                    } else {
+                        let nomeSemExtensao = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                        document.getElementById('numTransferenciaPatio').value = nomeSemExtensao;
+                    }
 
-      elif opcao_adm == "🔬 Auditoria Amostral (Supervisor)":
-        st.subheader("Módulo de Auditoria Amostral Própria")
-        if df_inventarios_sup.empty:
-          id_sup_act, inv_sup_obj = None, None
-        else:
-          sel_s = st.selectbox(
-              "Selecione a Pasta de Auditoria Ativa:",
-              [
-                  f"{r['id']} – {r['nome']} ({r['status']})"
-                  for _, r in df_inventarios_sup.iterrows()
-              ],
-              key="sb_sup_active",
-          )
-          id_sup_act = sel_s.split(" – ")[0]
-          inv_sup_obj = df_inventarios_sup[
-              df_inventarios_sup['id'] == id_sup_act
-          ].iloc[0]
+                    const codOrigem = row1[1] !== undefined ? String(row1[1]).trim() : '';
+                    const descOrigem = row1[2] !== undefined ? String(row1[2]).trim() : '';
+                    let origemCompleta = `${codOrigem} - ${descOrigem}`.replace(/^ - |- $/g, '').trim();
+                    if (origemCompleta) document.getElementById('filialOrigem').value = origemCompleta;
 
-        if inv_sup_obj is not None and inv_sup_obj['status'] == "Aberto":
-          if st.button(
-              "🔒 Fechar Esta Pasta de Auditoria e Enviar por E-mail",
-              type="primary",
-              use_container_width=True,
-          ):
-            df_aud_enviar = db_ram["auditorias_sup"][
-                db_ram["auditorias_sup"]['inventario_id'] == id_sup_act
-            ]
+                    const codDestino = row1[3] !== undefined ? String(row1[3]).trim() : '';
+                    const descDestino = row1[4] !== undefined ? String(row1[4]).trim() : '';
+                    let destinoCompleto = `${codDestino} - ${descDestino}`.replace(/^ - |- $/g, '').trim();
+                    if (destinoCompleto) document.getElementById('filialDestino').value = destinoCompleto;
 
-            if df_aud_enviar.empty:
-              st.warning(
-                  "⚠️ Nenhum item auditado nesta pasta para ser enviado!"
-              )
-            else:
-              db_ram["inventarios_sup"].loc[
-                  db_ram["inventarios_sup"]['id'] == id_sup_act, 'status'
-              ] = 'Fechado'
-              disparar_email_auditoria_supervisor(
-                  df_aud_enviar,
-                  inv_sup_obj['nome'],
-                  st.session_state.operador,
-              )
-              st.success(
-                  "✅ Pasta de Auditoria encerrada e e-mail enviado com"
-                  " sucesso!"
-              )
-              st.rerun()
+                    salvarRascunhoAuto();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
 
-        with st.expander("➕ Nova Pasta de Auditoria do Supervisor"):
-          with st.form("form_sup_new"):
-            nom_s = st.text_input("Nome da Pasta Amostral")
-            if (
-                st.form_submit_button("Criar Pasta Supervisor", type="primary")
-                and nom_s
-            ):
-              m_id_s = len(db_ram["inventarios_sup"]) + 1
-              db_ram["inventarios_sup"] = pd.concat(
-                  [
-                      db_ram["inventarios_sup"],
-                      pd.DataFrame([{
-                          'id': f"SUP-#{m_id_s}",
-                          'nome': nom_s,
-                          'data': datetime.date.today().strftime("%Y-%m-%d"),
-                          'status': 'Aberto',
-                      }]),
-                  ],
-                  ignore_index=True,
-              )
-              st.rerun()
+        function carregarExcel() {
+            const fileInput = document.getElementById('fileExcel');
+            if (!fileInput.files.length) {
+                alert('Por favor, selecione um ficheiro Excel primeiro.');
+                return;
+            }
 
-        arq_sup = st.file_uploader(
-            "Suba a planilha Excel de amostras (.xlsx)",
-            type=["xlsx"],
-            key="up_excel_sup",
-        )
-        if arq_sup is not None and id_sup_act:
-          try:
-            db_ram["bases_sup_dict"][id_sup_act] = pd.read_excel(arq_sup)
-            st.success("✅ Planilha anexa com sucesso!")
-          except Exception as e:
-            st.error(f"Erro: {e}")
+            const file = fileInput.files[0];
+            let numTrf = document.getElementById('numTransferenciaPatio').value.trim();
+            let origem = document.getElementById('filialOrigem').value.trim();
+            let filial = document.getElementById('filialDestino').value.trim();
 
-        base_sup_curr = db_ram["bases_sup_dict"].get(id_sup_act, None)
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
 
-        if id_sup_act and base_sup_curr is not None and inv_sup_obj['status'] == "Aberto":
-          cols_sup = list(base_sup_curr.columns)
+                if (!numTrf && jsonData.length > 1) {
+                    let rawTrf = jsonData[1][0] !== undefined ? String(jsonData[1][0]).trim() : '';
+                    numTrf = rawTrf.split(',')[0].replace(/\D/g, '');
+                    if (!numTrf) {
+                        numTrf = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                    }
+                    document.getElementById('numTransferenciaPatio').value = numTrf;
+                }
 
-          def mapear_col_s(opcoes, idx_padrao):
-            for op in opcoes:
-              for c in cols_sup:
-                if op.lower().replace(" ", "").replace(".", "") in str(c).lower().replace(" ", "").replace(".", ""):
-                  return c
-            return (
-                cols_sup[idx_padrao]
-                if idx_padrao < len(cols_sup)
-                else cols_sup[0]
-            )
+                transferenciaAtual = {
+                    numero: numTrf,
+                    origem: origem || 'Origem Padrão',
+                    destino: filial || 'Destino Padrão',
+                    status: 'Aberto (Separação)',
+                    itens: [],
+                    fotosCarga: [],
+                    obsCarga: '',
+                    romaneio: '',
+                    fotoRomaneio: ''
+                };
 
-          col_cod_s, col_desc_s = mapear_col_s(
-              ['códproduto', 'codproduto', 'codigo'], 0
-          ), mapear_col_s(['descproduto', 'descricao'], 1)
-          col_local_s, col_qtd_s, col_id_est_s = (
-              mapear_col_s(['descestoquefisico', 'localizacao'], 2),
-              mapear_col_s(['qtdestoque', 'quantidade'], -1),
-              mapear_col_s(['idestoquefísico', 'idestoque'], 0),
-          )
+                const idxCod  = 24;
+                const idxDesc = 25;
+                const idxQtd  = 28;
+                const idxPat  = 29;
+                const idxLote = 31;
 
-          df_ja_auditados = db_ram["auditorias_sup"][
-              db_ram["auditorias_sup"]['inventario_id'] == id_sup_act
-          ]
-          cods_ja_auditados = (
-              set(
-                  df_ja_auditados['cod_produto']
-                  .astype(str)
-                  .str.upper()
-                  .str.strip()
-                  .tolist()
-              )
-              if not df_ja_auditados.empty
-              else set()
-          )
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    if (row && row.length > 0) {
+                        const codigo = row[idxCod] !== undefined ? String(row[idxCod]).trim() : '-';
+                        const descricao = row[idxDesc] !== undefined ? String(row[idxDesc]).trim() : '-';
+                        const patrimonio = (row[idxPat] !== undefined && row[idxPat] !== null && String(row[idxPat]).trim() !== '') ? String(row[idxPat]).trim() : '-';
+                        const lote = (row[idxLote] !== undefined && row[idxLote] !== null && String(row[idxLote]).trim() !== '') ? String(row[idxLote]).trim() : '-';
+                        
+                        let rawQtd = row[idxQtd];
+                        let qtdERP = 1;
+                        if (rawQtd !== undefined && rawQtd !== null && !isNaN(rawQtd) && Number(rawQtd) > 0) {
+                            qtdERP = Number(rawQtd);
+                        }
 
-          tot_amostra = len(base_sup_curr)
-          st.progress(
-              min(1.0, len(cods_ja_auditados) / tot_amostra)
-              if tot_amostra > 0
-              else 0.0
-          )
-          st.dataframe(
-              base_sup_curr, use_container_width=True, hide_index=True
-          )
+                        if (codigo !== '-' || descricao !== '-') {
+                            transferenciaAtual.itens.push({
+                                codigo: codigo,
+                                descricao: descricao,
+                                patrimonio: patrimonio,
+                                lote: lote,
+                                qtdERP: qtdERP,
+                                qtdConferida: qtdERP,
+                                obs: '',
+                                fotos: []
+                            });
+                        }
+                    }
+                }
 
-          base_pendente = base_sup_curr[
-              ~base_sup_curr[col_cod_s]
-              .astype(str)
-              .str.upper()
-              .str.strip()
-              .isin(cods_ja_auditados)
-          ]
+                renderizarTabelaItens();
+                salvarRascunhoAuto();
+                alert(`Transferência Nº ${transferenciaAtual.numero} carregada! ${transferenciaAtual.itens.length} itens extraídos.`);
+            };
 
-          col_bip, col_select = st.columns([1, 1])
-          bip_sup = col_bip.text_input(
-              "Bipe o código com leitor (opcional):",
-              key=f"bip_sup_{st.session_state.contador_reset_sup}",
-          )
-          item_combo_sup = (
-              col_select.selectbox(
-                  "Ou selecione o material da lista:",
-                  [
-                      f"{r[col_cod_s]} - {r[col_desc_s]}"
-                      for _, r in base_pendente.iterrows()
-                  ]
-                  if not base_pendente.empty
-                  else [],
-                  key="combo_sup_amostra",
-              )
-              if not base_pendente.empty
-              else None
-          )
+            reader.readAsArrayBuffer(file);
+        }
 
-          cod_sup_clean = (
-              str(bip_sup).upper().strip().split(" - ")[-1].strip()
-              if bip_sup
-              else (
-                  str(item_combo_sup).split(" - ")[0].strip()
-                  if item_combo_sup
-                  else ""
-              )
-          )
+        function renderizarTabelaItens() {
+            const tbody = document.getElementById('tabelaItens');
+            tbody.innerHTML = '';
 
-          if cod_sup_clean:
-            match_s = base_sup_curr[
-                base_sup_curr[col_cod_s].astype(str).str.upper().str.strip()
-                == cod_sup_clean
-            ]
-            if not match_s.empty:
-              row_s = match_s.iloc[0]
-              st.info(f"📦 **Auditando Item:** {cod_sup_clean} - {row_s[col_desc_s]}")
-              with st.form("form_auditar_item_completo", clear_on_submit=True):
-                c_f1, c_f2, c_f3 = st.columns(3)
-                q_aud = c_f1.number_input(
-                    "Quantidade Real Encontrada Fisicamente:",
-                    min_value=0,
-                    step=1,
-                    value=0,
-                )
-                e_ok = c_f2.selectbox(
-                    "A Etiqueta Física está Correta?", ["Sim", "Não"]
-                )
-                l_ok = c_f3.selectbox(
-                    "O Endereçamento/Localização está Correto?", ["Sim", "Não"]
-                )
-                at_sup = st.text_input("Número do Ativo (Opcional)")
-                if st.form_submit_button(
-                    "💾 Salvar Auditoria do Item",
-                    type="primary",
-                    use_container_width=True,
-                ):
-                  novo_id_aud = len(db_ram["auditorias_sup"]) + 1
-                  db_ram["auditorias_sup"] = pd.concat([
-                      db_ram["auditorias_sup"],
-                      pd.DataFrame([{
-                          'id': novo_id_aud,
-                          'inventario_id': id_sup_act,
-                          'id_estoque': (
-                              str(row_s[col_id_est_s]).strip()
-                              if col_id_est_s in base_sup_curr.columns
-                              else ""
-                          ),
-                          'desc_estoque': (
-                              str(row_s[col_local_s])
-                              if col_local_s in base_sup_curr.columns
-                              else "Não Informado"
-                          ),
-                          'cod_produto': cod_sup_clean,
-                          'desc_produto': str(row_s[col_desc_s]),
-                          'qtd_sistema': int(
-                              pd.to_numeric(
-                                  row_s[col_qtd_s], errors='coerce'
-                              )
-                              or 0
-                          ),
-                          'qtd_auditada': q_aud,
-                          'diferenca': q_aud
-                          - int(
-                              pd.to_numeric(
-                                  row_s[col_qtd_s], errors='coerce'
-                              )
-                              or 0
-                          ),
-                          'etiqueta_correta': e_ok,
-                          'localizacao_correta': l_ok,
-                          'supervisor': st.session_state.operador,
-                          'data_hora': datetime.datetime.now().strftime(
-                              "%Y-%m-%d %H:%M:%S"
-                          ),
-                          'ativo': at_sup.strip().upper(),
-                      }]),
-                  ], ignore_index=True)
-                  st.success("✅ Auditoria registrada!")
-                  st.session_state.contador_reset_sup += 1
-                  st.rerun()
+            transferenciaAtual.itens.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800/40 transition';
+                tr.innerHTML = `
+                    <td class="p-3 font-mono font-bold text-emerald-400">${item.codigo}</td>
+                    <td class="p-3 text-slate-200">${item.descricao}</td>
+                    <td class="p-3 text-xs text-slate-400 font-semibold">${item.patrimonio}</td>
+                    <td class="p-3 text-xs text-slate-400 font-semibold">${item.lote}</td>
+                    <td class="p-3 text-center font-bold text-emerald-400">${item.qtdERP}</td>
+                    <td class="p-3 text-center">
+                        <input type="number" value="${item.qtdConferida}" onchange="atualizarQtd(${index}, this.value)" class="w-16 bg-slate-950 border border-slate-800 rounded-lg text-center py-1 text-sm text-amber-400 font-bold outline-none">
+                    </td>
+                    <td class="p-3">
+                        <input type="text" value="${item.obs}" placeholder="Avaria / obs..." onchange="atualizarObs(${index}, this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs outline-none text-slate-200">
+                    </td>
+                    <td class="p-3 text-center">
+                        <div class="flex flex-col items-center gap-1">
+                            <input type="file" accept="image/*" multiple id="fotoItem_${index}" onchange="adicionarFotoItem(${index}, this)" class="hidden">
+                            <button onclick="document.getElementById('fotoItem_${index}').click()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-2.5 py-1 rounded-lg border border-slate-700 flex items-center gap-1">
+                                <i class="fa-solid fa-camera text-emerald-400"></i> Fotos (${item.fotos.length}/5)
+                            </button>
+                            <div class="flex gap-1 mt-1 flex-wrap justify-center" id="thumbs_${index}">
+                                ${item.fotos.map((img) => `<img src="${img}" class="w-8 h-8 object-cover rounded-md border border-slate-700">`).join('')}
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
 
-      elif opcao_adm == "📊 Relatório Consolidado (Excel Gerencial)":
-        st.subheader("Gerar Planilha Gerencial por Período (Múltiplas Abas)")
+        function atualizarQtd(index, val) {
+            transferenciaAtual.itens[index].qtdConferida = Number(val);
+            salvarRascunhoAuto();
+        }
 
-        hoje = datetime.date.today()
-        quinze_dias_atras = hoje - datetime.timedelta(days=15)
+        function atualizarObs(index, val) {
+            transferenciaAtual.itens[index].obs = val;
+            salvarRascunhoAuto();
+        }
 
-        col_d1, col_d2 = st.columns(2)
-        with col_d1:
-          data_inicio = st.date_input(
-              "📅 Data Inicial:",
-              value=quinze_dias_atras,
-              format="DD/MM/YYYY",
-          )
-        with col_d2:
-          data_fim = st.date_input(
-              "📅 Data Final:", value=hoje, format="DD/MM/YYYY"
-          )
+        function adicionarFotoItem(index, input) {
+            const files = Array.from(input.files);
+            const item = transferenciaAtual.itens[index];
 
-        arq_base_gerencial = st.file_uploader(
-            "Suba a planilha acumulada de contagens (DATA_BASE .xlsx)",
-            type=["xlsx"],
-            key="up_gerencial_adm",
-        )
+            files.forEach(file => {
+                if (item.fotos.length < 5) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        item.fotos.push(e.target.result);
+                        renderizarTabelaItens();
+                        salvarRascunhoAuto();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
 
-        if arq_base_gerencial is not None:
-          df_c_fil = pd.read_excel(arq_base_gerencial)
-          st.success(
-              f"📌 Base carregada com sucesso! Contém {len(df_c_fil)} registros."
-          )
+        function previewFotosCarga(input) {
+            const files = Array.from(input.files);
+            const galeria = document.getElementById('galeriaFotosCarga');
+            galeria.innerHTML = '';
+            transferenciaAtual.fotosCarga = [];
 
-          if st.button(
-              "🚀 Gerar Excel Consolidado do Período",
-              type="primary",
-              use_container_width=True,
-          ):
-            bytes_ex = gerar_relatorio_consolidado_excel(
-                df_c_fil, LISTA_ESTOQUES_FIXA
-            )
-            st.download_button(
-                label=(
-                    "📥 Clique para Baixar o Relatório"
-                    f" ({data_inicio.strftime('%d-%m-%Y')} a"
-                    f" {data_fim.strftime('%d-%m-%Y')}).xlsx"
-                ),
-                data=bytes_ex,
-                file_name=(
-                    "Relatorio_Gerencial_"
-                    f"{data_inicio.strftime('%Y-%m-%d')}_a_"
-                    f"{data_fim.strftime('%Y-%m-%d')}.xlsx"
-                ),
-                mime=(
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                ),
-                use_container_width=True,
-            )
+            files.slice(0, 5).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    transferenciaAtual.fotosCarga.push(e.target.result);
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'w-16 h-16 object-cover rounded-xl border border-emerald-500 shadow';
+                    galeria.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
 
-      elif opcao_adm == "👥 Gestão de Usuários & Senhas":
-        st.subheader("Gerenciamento de Colaboradores e Perfis")
-        df_usrs = db_ram["usuarios"]
-        st.dataframe(
-            df_usrs[['id', 'nome', 'cpf', 'email', 'perfil']],
-            use_container_width=True,
-            hide_index=True,
-        )
-        c_u1, c_u2 = st.columns(2)
-        with c_u1:
-          u_sel = st.selectbox(
-              "Escolha o Colaborador:",
-              [f"{r['id']} - {r['nome']}" for _, r in df_usrs.iterrows()],
-          )
-          idx_usr_id = int(u_sel.split(" - ")[0])
-          n_senha, n_perfil = st.text_input(
-              "Nova Senha", type="password"
-          ), st.selectbox(
-              "Nível de Acesso:", ["Almoxarife", "Administrador"]
-          )
-          if st.button(
-              "🔄 Atualizar Dados do Usuário",
-              type="primary",
-              use_container_width=True,
-          ):
-            idx_m = db_ram["usuarios"][
-                db_ram["usuarios"]['id'] == idx_usr_id
-            ].index
-            if n_senha.strip():
-              db_ram["usuarios"].loc[idx_m, 'senha'] = n_senha.strip()
-            db_ram["usuarios"].loc[idx_m, 'perfil'] = n_perfil
-            st.success("✅ Atualizado!")
-            st.rerun()
-        with c_u2:
-          u_del = st.selectbox(
-              "Remover Colaborador:",
-              [f"{r['id']} - {r['nome']}" for _, r in df_usrs.iterrows()],
-              key="sb_del",
-          )
-          idx_del_id = int(u_del.split(" - ")[0])
-          if st.button(
-              "❌ Confirmar Exclusão",
-              type="primary",
-              use_container_width=True,
-          ):
-            db_ram["usuarios"] = db_ram["usuarios"][
-                db_ram["usuarios"]['id'] != idx_del_id
-            ]
-            st.success("✅ Usuário removido!")
-            st.rerun()
+        function previewFotoRomaneio(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    transferenciaAtual.fotoRomaneio = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function concluirSeparacao() {
+            let numTrf = document.getElementById('numTransferenciaPatio').value.trim();
+            if (!numTrf) {
+                alert('Informe o Número da Transferência primeiro.');
+                return;
+            }
+            transferenciaAtual.numero = numTrf;
+            transferenciaAtual.status = 'Aguardando Embarque';
+            transferenciaAtual.operadorPatio = usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador';
+            
+            enviarParaGoogleSheets(transferenciaAtual);
+            limparRascunhoPatio();
+            alert(`Separação da Transferência Nº ${numTrf} registrada por ${transferenciaAtual.operadorPatio}!`);
+        }
+
+        function concluirEmbarque() {
+            let numTrf = document.getElementById('numTransferenciaEmbarque').value.trim();
+            if (!numTrf) {
+                alert('Informe o Número da Transferência na Tela de Embarque.');
+                return;
+            }
+            
+            let pacoteEmbarque = {
+                numero: numTrf,
+                status: 'Embarcado / Aguardando Romaneio',
+                obsCarga: document.getElementById('obsCarga').value,
+                fotosCarga: transferenciaAtual.fotosCarga,
+                operadorEmbarque: usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador'
+            };
+
+            enviarParaGoogleSheets(pacoteEmbarque);
+            alert(`Fotos e liberação da Carga da Transferência Nº ${numTrf} registradas por ${pacoteEmbarque.operadorEmbarque}!`);
+        }
+
+        function finalizarRomaneio() {
+            let numTrf = document.getElementById('numTransferenciaRomaneio').value.trim();
+            let numRom = document.getElementById('numRomaneio').value.trim();
+
+            if (!numTrf || !numRom) {
+                alert('Informe o número da transferência e o número do romaneio.');
+                return;
+            }
+
+            let pacoteRomaneio = {
+                numero: numTrf,
+                romaneio: numRom,
+                status: 'Romaneio Assinado',
+                fotoRomaneio: transferenciaAtual.fotoRomaneio,
+                operadorADM: usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador'
+            };
+
+            enviarParaGoogleSheets(pacoteRomaneio);
+            alert(`Romaneio ${numRom} anexado com sucesso por ${pacoteRomaneio.operadorADM}!`);
+        }
+
+        function abrirModalConfig() {
+            document.getElementById('urlGoogleScript').value = localStorage.getItem('sgt_script_url') || '';
+            document.getElementById('modalConfig').classList.remove('hidden');
+        }
+
+        function fecharModalConfig() {
+            document.getElementById('modalConfig').classList.add('hidden');
+        }
+
+        function guardarConfigScript() {
+            const url = document.getElementById('urlGoogleScript').value.trim();
+            localStorage.setItem('sgt_script_url', url);
+            fecharModalConfig();
+            alert('URL do Google Sheets salva com sucesso!');
+        }
+
+        function enviarParaGoogleSheets(dados) {
+            const url = localStorage.getItem('sgt_script_url');
+            if (!url) {
+                alert('Configure a URL do Google Sheets no botão superior.');
+                return;
+            }
+
+            fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados)
+            }).then(() => {
+                console.log('Dados sincronizados com o Google Sheets.');
+            }).catch(err => console.error('Erro ao enviar:', err));
+        }
+    </script>
+</body>
+</html>
