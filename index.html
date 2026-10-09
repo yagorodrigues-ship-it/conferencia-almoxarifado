@@ -109,9 +109,12 @@
     </div>
 
     <!-- HEADER / NAVEGAÇÃO -->
-    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 shadow-lg w-full">
+        <div class="w-full px-6 py-3 flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center gap-3">
+                <button onclick="alternarPainelPastas()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 p-2.5 rounded-xl border border-slate-700 transition" title="Minimizar/Expandir Pastas">
+                    <i class="fa-solid fa-folder-tree text-base"></i>
+                </button>
                 <div class="w-10 h-10 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center">
                     <i class="fa-solid font-bold text-xl text-emerald-400 fa-boxes-stacked"></i>
                 </div>
@@ -122,13 +125,13 @@
             </div>
 
             <div class="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
-                <button id="btnNavPatio" onclick="mudarTela('patio')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30">
+                <button id="btnNavPatio" onclick="mudarTela('patio')" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30">
                     <i class="fa-solid fa-hard-hat mr-1.5"></i> Tela 1: Pátio
                 </button>
-                <button id="btnNavEmbarque" onclick="mudarTela('embarque')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                <button id="btnNavEmbarque" onclick="mudarTela('embarque')" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition">
                     <i class="fa-solid fa-truck-ramp-box mr-1.5"></i> Tela 2: Embarque
                 </button>
-                <button id="btnNavRomaneio" onclick="mudarTela('romaneio')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                <button id="btnNavRomaneio" onclick="mudarTela('romaneio')" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition">
                     <i class="fa-solid fa-file-signature mr-1.5"></i> Tela 3: Romaneio
                 </button>
             </div>
@@ -152,104 +155,103 @@
         </div>
     </header>
 
-    <!-- LAYOUT COM PAINEL LATERAL DE PASTAS (ESTILO APLICATIVO DE INVENTÁRIO) -->
-    <div class="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <!-- CONTAINER FULLWIDTH (MAXIMIZADO NA TELA) -->
+    <div class="w-full px-6 py-4 flex gap-6">
 
-        <!-- PAINEL LATERAL ESQUERDO: SELEÇÃO DE PASTA DA TRANSFERÊNCIA -->
-        <aside class="space-y-4">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-4">
+        <!-- PAINEL MINIMIZÁVEL DE PASTAS -->
+        <aside id="painelPastasLateral" class="w-80 flex-shrink-0 space-y-4 transition-all duration-300">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-4 sticky top-20">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                     <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-folder-open"></i> Seleção de Conferência
+                        <i class="fa-solid fa-folder-open"></i> Central de Transferências
                     </h3>
-                    <button onclick="carregarPastasDoServidor()" class="text-slate-400 hover:text-emerald-400 text-xs" title="Recarregar do servidor">
+                    <button onclick="carregarPastasDoServidor()" class="text-slate-400 hover:text-emerald-400 text-xs" title="Atualizar Pastas">
                         <i class="fa-solid fa-rotate-right"></i>
                     </button>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Selecione a Pasta:</label>
-                    <select id="selectPastasServidor" onchange="selecionarPastaTransferencia(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-emerald-400 font-bold outline-none focus:border-emerald-500">
-                        <option value="">-- Nenhuma Selecionada --</option>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Selecione uma Pasta Existente:</label>
+                    <select id="selectPastasServidor" onchange="selecionarPastaTransferencia(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-emerald-400 font-bold outline-none focus:border-emerald-500">
+                        <option value="">-- Selecione uma Transferência --</option>
                     </select>
                 </div>
 
-                <!-- BANNER DE STATUS DA PASTA SELECIONADA -->
                 <div id="bannerStatusPasta" class="hidden bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs space-y-1">
                     <p class="font-bold text-slate-200" id="infoPastaNome">TRF: -</p>
                     <p id="infoPastaStatus" class="text-amber-400 font-bold">Status: -</p>
                 </div>
-
-                <!-- BOTAO PARA ABRIR NOVA CONFERENCIA -->
-                <div class="pt-2 border-t border-slate-800">
-                    <p class="text-[11px] text-slate-400 mb-2">Para criar uma nova conferência, digite a TM e clique abaixo:</p>
-                    <button id="btnAbrirConferencia" onclick="abrirNovaConferencia()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs shadow transition flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-plus-circle"></i> Iniciar Nova Conferência
-                    </button>
-                </div>
             </div>
         </aside>
 
-        <!-- ÁREA PRINCIPAL DAS TELAS (3 COLUNAS) -->
-        <main class="lg:col-span-3 space-y-6">
+        <!-- CONTEÚDO PRINCIPAL EXPANDIDO NA LARGURA TOTAL -->
+        <main class="flex-1 space-y-6 min-w-0">
 
             <!-- TELA 1: PÁTIO / ALMOXARIFE -->
             <div id="telaPatio" class="space-y-6">
 
-                <!-- AVISO DE CONFERÊNCIA FECHADA (BLOQUEIO) -->
+                <!-- ETAPA 1: ABERTURA & IMPORTAÇÃO DA TRANSFERÊNCIA HORIZONTAL -->
+                <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-file-import"></i> Etapa 1. Abertura & Importação ERP (Almoxarife)
+                        </h2>
+                        <span id="indicadorRascunho" class="text-xs font-mono bg-slate-950 text-slate-400 px-3 py-1 rounded-md border border-slate-800">
+                            Preencha a TM e clique em Iniciar Conferência
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº Transferência / Guia:</label>
+                            <input type="text" id="numTransferenciaPatio" placeholder="Ex: 1911780" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm focus:border-emerald-500 outline-none font-bold text-emerald-400">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Origem (Colunas B + C):</label>
+                            <input type="text" id="filialOrigem" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs focus:border-emerald-500 outline-none text-slate-200 font-medium">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Destino (Colunas D + E):</label>
+                            <input type="text" id="filialDestino" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs focus:border-emerald-500 outline-none text-emerald-300 font-semibold">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Ficheiro Excel (.xlsx / .csv):</label>
+                            <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" onchange="detectarDadosExcel(this)" class="block w-full text-xs text-slate-400 file:mr-2 file:py-2 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer">
+                        </div>
+
+                        <div class="flex items-end gap-2">
+                            <button id="btnAbrirConferencia" onclick="abrirNovaConferencia()" class="w-full bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-xl text-xs font-bold transition shadow flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-folder-plus"></i> Iniciar Conferência
+                            </button>
+                            <button id="btnCarregarExcel" onclick="carregarExcel()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-bold transition shadow flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-play"></i> Carregar Itens
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AVISO DE CONFERÊNCIA FECHADA -->
                 <div id="avisoPastaFechada" class="hidden bg-rose-950/80 border border-rose-800/80 text-rose-200 p-4 rounded-2xl flex items-center gap-3 text-xs font-semibold">
                     <i class="fa-solid fa-lock text-xl text-rose-400"></i>
                     <div>
                         <p class="font-bold text-sm">Conferência Encerrada / Fechada</p>
-                        <p class="text-rose-300">Esta transferência já foi concluída e enviada para a nuvem. Não é possível alterar itens ou anexar novas fotos.</p>
+                        <p class="text-rose-300">Esta transferência já foi finalizada. Não é possível alterar quantidades ou fotos.</p>
                     </div>
                 </div>
 
-                <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
-                    <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-                        <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fa-solid fa-file-import"></i> Etapa 1. Importar Transferência do ERP (Almoxarife)
-                        </h2>
-                        <span id="indicadorRascunho" class="text-xs font-mono bg-slate-950 text-slate-400 px-2.5 py-1 rounded-md border border-slate-800">
-                            Nº TRF Lida da Coluna A (CODIGO)
-                        </span>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Ficheiro Excel (.xlsx / .csv):</label>
-                            <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" onchange="detectarDadosExcel(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº Transferência / Guia:</label>
-                            <input type="text" id="numTransferenciaPatio" onchange="salvarRascunhoAuto()" placeholder="Auto lido da Coluna CODIGO" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm focus:border-emerald-500 outline-none font-bold text-emerald-400">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Origem (Colunas B + C):</label>
-                            <input type="text" id="filialOrigem" onchange="salvarRascunhoAuto()" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-slate-200 font-medium">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Destino (Colunas D + E):</label>
-                            <input type="text" id="filialDestino" onchange="salvarRascunhoAuto()" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-emerald-300 font-semibold">
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end border-t border-slate-800/80 pt-3">
-                        <button id="btnCarregarExcel" onclick="carregarExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition">
-                            <i class="fa-solid fa-play"></i> Carregar Itens do Excel
-                        </button>
-                    </div>
-                </div>
-
-                <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
-                    <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                <!-- ETAPA 2: EVIDENCIAÇÃO POR ITEM E FOTOS -->
+                <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
                         <div>
                             <h2 class="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fa-solid fa-boxes-packing"></i> Etapa 2. Evidenciação por Item (Fotos do Material)
+                                <i class="fa-solid fa-boxes-packing"></i> Etapa 2. Evidenciação por Item (Fotos & Quantidade)
                             </h2>
                             <p class="text-xs text-slate-400 mt-0.5">Confira a quantidade e tire até 5 fotos por item.</p>
                         </div>
-                        <button id="btnConcluirSeparacao" onclick="concluirSeparacao()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-md shadow-emerald-900/20">
+                        <button id="btnConcluirSeparacao" onclick="concluirSeparacao()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-900/30">
                             <i class="fa-solid fa-check-double"></i> Concluir Separação (Enviar p/ Nuvem)
                         </button>
                     </div>
@@ -270,7 +272,7 @@
                             </thead>
                             <tbody id="tabelaItens" class="divide-y divide-slate-800/60 bg-slate-900/50">
                                 <tr>
-                                    <td colspan="8" class="p-8 text-center text-slate-500">Nenhuma transferência carregada. Importe um ficheiro Excel acima.</td>
+                                    <td colspan="8" class="p-8 text-center text-slate-500">Nenhuma transferência carregada. Digite a TM ou selecione uma pasta no menu.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -283,12 +285,9 @@
             <div id="telaEmbarque" class="space-y-6 hidden">
                 <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
                     <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
-                        <div>
-                            <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fa-solid fa-truck-ramp-box"></i> Liberação da Carga & Caminhão (Encarregado)
-                            </h2>
-                            <p class="text-xs text-slate-400 mt-0.5">Informe o número da transferência cadastrada no pátio para vincular as fotos do envio.</p>
-                        </div>
+                        <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-truck-ramp-box"></i> Liberação da Carga & Caminhão (Encarregado)
+                        </h2>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -298,19 +297,19 @@
                         </div>
 
                         <div>
-                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Fotos da Carga Embalada / Caminhão (Até 5 fotos):</label>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Fotos da Carga / Caminhão (Até 5 fotos):</label>
                             <input type="file" id="fotosCarga" accept="image/*" multiple onchange="previewFotosCarga(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white bg-slate-950 rounded-xl border border-slate-800">
                             <div id="galeriaFotosCarga" class="flex flex-wrap gap-2 mt-3"></div>
                         </div>
 
                         <div>
                             <label class="block text-xs font-semibold text-slate-300 mb-1.5">Observações do Envio / Lacre / Placa:</label>
-                            <textarea id="obsCarga" rows="4" placeholder="Ex: Carga posicionada no baú 02. Lacre nº 987654. Placa ABC-1234. Saída às 14h." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-slate-200"></textarea>
+                            <textarea id="obsCarga" rows="4" placeholder="Ex: Carga posicionada no baú 02. Lacre nº 987654. Placa ABC-1234." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-slate-200"></textarea>
                         </div>
                     </div>
 
                     <div class="flex justify-end border-t border-slate-800/80 pt-3">
-                        <button onclick="concluirEmbarque()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-900/20">
+                        <button onclick="concluirEmbarque()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg transition">
                             <i class="fa-solid fa-truck-fast"></i> Autorizar e Concluir Embarque
                         </button>
                     </div>
@@ -321,12 +320,9 @@
             <div id="telaRomaneio" class="space-y-6 hidden">
                 <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
                     <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
-                        <div>
-                            <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fa-solid fa-file-invoice-dollar"></i> Lançamento de Romaneio Assinado (ADM)
-                            </h2>
-                            <p class="text-xs text-slate-400 mt-0.5">Informe o número da transferência para atualizar o status e vincular o comprovante assinado.</p>
-                        </div>
+                        <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-file-invoice-dollar"></i> Lançamento de Romaneio Assinado (ADM)
+                        </h2>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -339,14 +335,14 @@
                             <input type="text" id="numRomaneio" placeholder="Ex: ROM-88712" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-emerald-500 text-slate-200">
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Foto / Digitalização do Romaneio Assinado:</label>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Foto do Romaneio Assinado:</label>
                             <input type="file" id="fotoRomaneio" accept="image/*" onchange="previewFotoRomaneio(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white bg-slate-950 rounded-xl border border-slate-800">
                         </div>
                     </div>
 
                     <div class="flex justify-end border-t border-slate-800/80 pt-3">
-                        <button onclick="finalizarRomaneio()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition">
-                            <i class="fa-solid fa-check"></i> Baixar e Concluir Romaneio (Status: Romaneio Assinado)
+                        <button onclick="finalizarRomaneio()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg transition">
+                            <i class="fa-solid fa-check"></i> Baixar e Concluir Romaneio
                         </button>
                     </div>
                 </div>
@@ -528,28 +524,32 @@
             }
         }
 
+        function alternarPainelPastas() {
+            const painel = document.getElementById('painelPastasLateral');
+            painel.classList.toggle('hidden');
+        }
+
         function mudarTela(tela) {
             document.getElementById('telaPatio').classList.add('hidden');
             document.getElementById('telaEmbarque').classList.add('hidden');
             document.getElementById('telaRomaneio').classList.add('hidden');
 
-            document.getElementById('btnNavPatio').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
-            document.getElementById('btnNavEmbarque').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
-            document.getElementById('btnNavRomaneio').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
+            document.getElementById('btnNavPatio').className = 'px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
+            document.getElementById('btnNavEmbarque').className = 'px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
+            document.getElementById('btnNavRomaneio').className = 'px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
 
             if(tela === 'patio') {
                 document.getElementById('telaPatio').classList.remove('hidden');
-                document.getElementById('btnNavPatio').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
+                document.getElementById('btnNavPatio').className = 'px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
             } else if(tela === 'embarque') {
                 document.getElementById('telaEmbarque').classList.remove('hidden');
-                document.getElementById('btnNavEmbarque').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
+                document.getElementById('btnNavEmbarque').className = 'px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
             } else if(tela === 'romaneio') {
                 document.getElementById('telaRomaneio').classList.remove('hidden');
-                document.getElementById('btnNavRomaneio').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
+                document.getElementById('btnNavRomaneio').className = 'px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
             }
         }
 
-        // CARREGAR LISTA DE PASTAS DIRETO DO GOOGLE SHEETS
         function carregarPastasDoServidor() {
             const url = localStorage.getItem('sgt_script_url');
             if (!url) return;
