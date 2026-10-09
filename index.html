@@ -761,10 +761,11 @@
             transferenciaAtual.numero = numTrf;
             transferenciaAtual.status = 'Aguardando Embarque';
             transferenciaAtual.operadorPatio = usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador';
+            transferenciaAtual.emailOperador = usuarioAtivo ? usuarioAtivo.user : '';
             
             enviarParaGoogleSheets(transferenciaAtual);
             limparRascunhoPatio();
-            alert(`Separação da Transferência Nº ${numTrf} registrada por ${transferenciaAtual.operadorPatio}!`);
+            alert(`Separação da Transferência Nº ${numTrf} registrada por ${transferenciaAtual.operadorPatio}! Notificação enviada por e-mail.`);
         }
 
         function concluirEmbarque() {
@@ -779,11 +780,12 @@
                 status: 'Embarcado / Aguardando Romaneio',
                 obsCarga: document.getElementById('obsCarga').value,
                 fotosCarga: transferenciaAtual.fotosCarga,
-                operadorEmbarque: usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador'
+                operadorEmbarque: usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador',
+                emailOperador: usuarioAtivo ? usuarioAtivo.user : ''
             };
 
             enviarParaGoogleSheets(pacoteEmbarque);
-            alert(`Fotos e liberação da Carga da Transferência Nº ${numTrf} registradas por ${pacoteEmbarque.operadorEmbarque}!`);
+            alert(`Fotos e liberação da Carga da Transferência Nº ${numTrf} registradas por ${pacoteEmbarque.operadorEmbarque}! Notificação enviada por e-mail.`);
         }
 
         function finalizarRomaneio() {
@@ -800,11 +802,12 @@
                 romaneio: numRom,
                 status: 'Romaneio Assinado',
                 fotoRomaneio: transferenciaAtual.fotoRomaneio,
-                operadorADM: usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador'
+                operadorADM: usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador',
+                emailOperador: usuarioAtivo ? usuarioAtivo.user : ''
             };
 
             enviarParaGoogleSheets(pacoteRomaneio);
-            alert(`Romaneio ${numRom} anexado com sucesso por ${pacoteRomaneio.operadorADM}!`);
+            alert(`Romaneio ${numRom} anexado com sucesso por ${pacoteRomaneio.operadorADM}! Notificação enviada por e-mail.`);
         }
 
         function abrirModalConfig() {
