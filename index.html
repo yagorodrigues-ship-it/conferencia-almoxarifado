@@ -121,7 +121,6 @@
                 </div>
             </div>
 
-            <!-- Botões de Troca de Tela -->
             <div class="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
                 <button id="btnNavPatio" onclick="mudarTela('patio')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30">
                     <i class="fa-solid fa-hard-hat mr-1.5"></i> Tela 1: Pátio
@@ -134,7 +133,6 @@
                 </button>
             </div>
 
-            <!-- Usuário Logado & Configurações -->
             <div class="flex items-center gap-2">
                 <div class="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs flex items-center gap-2">
                     <i class="fa-solid fa-user-check text-emerald-400"></i>
@@ -204,7 +202,7 @@
                         </h2>
                         <p class="text-xs text-slate-400 mt-0.5">Confira a quantidade e tire até 5 fotos por item.</p>
                     </div>
-                    <button onclick="concluirSeparacao()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-md shadow-emerald-900/20">
+                    <button id="btnConcluirSeparacao" onclick="concluirSeparacao()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-md shadow-emerald-900/20">
                         <i class="fa-solid fa-check-double"></i> Concluir Separação (Enviar p/ Nuvem)
                     </button>
                 </div>
@@ -572,11 +570,8 @@
             document.getElementById('indicadorRascunho').innerHTML = 'Nº TRF Lida da Coluna A (CODIGO)';
         }
 
-        // SALVAR NO HISTÓRICO LOCAL PERMANENTE
         function salvarNoHistoricoLocal(dados) {
             let historico = JSON.parse(localStorage.getItem('sgt_historico_local') || '[]');
-            
-            // Remove se já existir a mesma transferência para atualizar
             historico = historico.filter(h => h.numero !== dados.numero);
             
             const novoRegistro = {
@@ -589,7 +584,7 @@
                 dadosCompletos: dados
             };
 
-            historico.unshift(novoRegistro); // Adiciona no início da lista
+            historico.unshift(novoRegistro);
             localStorage.setItem('sgt_historico_local', JSON.stringify(historico));
             renderizarHistoricoLocal();
         }
@@ -636,7 +631,7 @@
                 
                 mudarTela('patio');
                 renderizarTabelaItens();
-                alert(`Transferência Nº ${transferenciaAtual.numero} reabrida na tela com sucesso!`);
+                alert(`Transferência Nº ${transferenciaAtual.numero} reaberta na tela com sucesso!`);
             }
         }
 
@@ -894,18 +889,26 @@
                 alert('Informe o Número da Transferência primeiro.');
                 return;
             }
+
+            const btn = document.getElementById('btnConcluirSeparacao');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+
             transferenciaAtual.numero = numTrf;
             transferenciaAtual.status = 'Aguardando Embarque';
             transferenciaAtual.operadorPatio = usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador';
             transferenciaAtual.emailOperador = usuarioAtivo ? usuarioAtivo.user : '';
             
-            enviarParaGoogleSheets(transferenciaAtual);
+            // Salva no histórico local imediatamente
             salvarNoHistoricoLocal(transferenciaAtual);
             limparRascunhoPatio();
-            
-            alert(`Separação da Transferência Nº ${numTrf} registrada por ${transferenciaAtual.operadorPatio}! Notificação enviada por e-mail e salva no histórico local.`);
-            
-            resetarFormularioPatio();
+
+            enviarParaGoogleSheets(transferenciaAtual, function() {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-check-double"></i> Concluir Separação (Enviar p/ Nuvem)';
+                alert(`Separação da Transferência Nº ${numTrf} concluída com sucesso! Os dados e fotos foram gravados.`);
+                resetarFormularioPatio();
+            });
         }
 
         function concluirEmbarque() {
@@ -924,11 +927,12 @@
                 emailOperador: usuarioAtivo ? usuarioAtivo.user : ''
             };
 
-            enviarParaGoogleSheets(pacoteEmbarque);
             salvarNoHistoricoLocal(pacoteEmbarque);
-            alert(`Fotos e liberação da Carga da Transferência Nº ${numTrf} registradas por ${pacoteEmbarque.operadorEmbarque}! Notificação enviada por e-mail.`);
-            
-            resetarFormularioEmbarque();
+
+            enviarParaGoogleSheets(pacoteEmbarque, function() {
+                alert(`Fotos e liberação da Carga da Transferência Nº ${numTrf} registradas!`);
+                resetarFormularioEmbarque();
+            });
         }
 
         function finalizarRomaneio() {
@@ -949,11 +953,12 @@
                 emailOperador: usuarioAtivo ? usuarioAtivo.user : ''
             };
 
-            enviarParaGoogleSheets(pacoteRomaneio);
             salvarNoHistoricoLocal(pacoteRomaneio);
-            alert(`Romaneio ${numRom} anexado com sucesso por ${pacoteRomaneio.operadorADM}! Notificação enviada por e-mail.`);
-            
-            resetarFormularioRomaneio();
+
+            enviarParaGoogleSheets(pacoteRomaneio, function() {
+                alert(`Romaneio ${numRom} anexado com sucesso!`);
+                resetarFormularioRomaneio();
+            });
         }
 
         function abrirModalConfig() {
@@ -972,22 +977,24 @@
             alert('URL do Google Sheets salva com sucesso!');
         }
 
-        function enviarParaGoogleSheets(dados) {
+        function enviarParaGoogleSheets(dados, callback) {
             const url = localStorage.getItem('sgt_script_url');
             if (!url) {
                 alert('Configure a URL do Google Sheets no botão superior.');
+                if (callback) callback();
                 return;
             }
 
-            // Removido mode: 'no-cors' para permitir comunicação transparente e disparo de e-mails no servidor
             fetch(url, {
                 method: 'POST',
+                mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(dados)
-            }).then(res => res.json()).then(resposta => {
-                console.log('Sincronização concluída com o Google Sheets:', resposta);
+            }).then(() => {
+                if (callback) callback();
             }).catch(err => {
-                console.error('Sincronização enviada para a nuvem.');
+                console.error('Erro na transmissão:', err);
+                if (callback) callback();
             });
         }
     </script>
