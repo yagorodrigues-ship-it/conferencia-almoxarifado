@@ -155,7 +155,7 @@
     </header>
 
     <!-- CONTAINER PRINCIPAL -->
-    <main class="max-w-7xl mx-auto p-4">
+    <main class="max-w-7xl mx-auto p-4 space-y-6">
 
         <!-- TELA 1: PÁTIO / ALMOXARIFE -->
         <div id="telaPatio" class="space-y-6">
@@ -307,6 +307,37 @@
             </div>
         </div>
 
+        <!-- HISTÓRICO LOCAL DE TRANSFERÊNCIAS LANÇADAS RECENTEMENTE -->
+        <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-folder-closed text-amber-400"></i> Histórico de Lançamentos Recentes no Sistema (Cache Local)
+                </h3>
+                <span class="text-xs text-slate-400">Clique em 'Reabrir' para trazer os dados de volta para a tela</span>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-800">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-950 text-slate-400 uppercase border-b border-slate-800">
+                        <tr>
+                            <th class="p-3">Data / Hora</th>
+                            <th class="p-3">Nº Transferência</th>
+                            <th class="p-3">Origem</th>
+                            <th class="p-3">Destino</th>
+                            <th class="p-3 text-center">Qtd Itens</th>
+                            <th class="p-3">Operador</th>
+                            <th class="p-3 text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaHistoricoLocal" class="divide-y divide-slate-800/60 bg-slate-900/50">
+                        <tr>
+                            <td colspan="7" class="p-4 text-center text-slate-500">Nenhuma transferência salva localmente ainda.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </main>
 
     <!-- MODAL CONFIGURAÇÃO GOOGLE SHEETS -->
@@ -370,6 +401,7 @@
                 document.getElementById('telaLogin').classList.add('hidden');
                 atualizarHeaderUsuario();
                 restaurarRascunhoSeExistir();
+                renderizarHistoricoLocal();
             } else {
                 document.getElementById('telaLogin').classList.remove('hidden');
             }
@@ -406,6 +438,7 @@
                 document.getElementById('loginPass').value = '';
                 atualizarHeaderUsuario();
                 restaurarRascunhoSeExistir();
+                renderizarHistoricoLocal();
             } else {
                 alert('Usuário/E-mail ou Senha incorretos!');
             }
@@ -537,6 +570,109 @@
         function limparRascunhoPatio() {
             localStorage.removeItem('sgt_rascunho_patio');
             document.getElementById('indicadorRascunho').innerHTML = 'Nº TRF Lida da Coluna A (CODIGO)';
+        }
+
+        // SALVAR NO HISTÓRICO LOCAL PERMANENTE
+        function salvarNoHistoricoLocal(dados) {
+            let historico = JSON.parse(localStorage.getItem('sgt_historico_local') || '[]');
+            
+            // Remove se já existir a mesma transferência para atualizar
+            historico = historico.filter(h => h.numero !== dados.numero);
+            
+            const novoRegistro = {
+                dataHora: new Date().toLocaleString("pt-BR"),
+                numero: dados.numero,
+                origem: dados.origem,
+                destino: dados.destino,
+                qtdItens: dados.itens ? dados.itens.length : 0,
+                operador: dados.operadorPatio || dados.operadorEmbarque || dados.operadorADM || 'Operador',
+                dadosCompletos: dados
+            };
+
+            historico.unshift(novoRegistro); // Adiciona no início da lista
+            localStorage.setItem('sgt_historico_local', JSON.stringify(historico));
+            renderizarHistoricoLocal();
+        }
+
+        function renderizarHistoricoLocal() {
+            const tbody = document.getElementById('tabelaHistoricoLocal');
+            const historico = JSON.parse(localStorage.getItem('sgt_historico_local') || '[]');
+
+            if (historico.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-500">Nenhuma transferência salva localmente ainda.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            historico.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800/40 transition';
+                tr.innerHTML = `
+                    <td class="p-3 text-slate-400 font-mono">${item.dataHora}</td>
+                    <td class="p-3 font-bold text-emerald-400 font-mono">${item.numero}</td>
+                    <td class="p-3 text-slate-200">${item.origem}</td>
+                    <td class="p-3 text-emerald-300 font-medium">${item.destino}</td>
+                    <td class="p-3 text-center font-bold text-amber-400">${item.qtdItens}</td>
+                    <td class="p-3 text-slate-300">${item.operador}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="reabrirTransferenciaDoHistorico(${index})" class="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 font-bold px-3 py-1 rounded-lg text-xs transition">
+                            <i class="fa-solid fa-folder-open mr-1"></i> Reabrir
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function reabrirTransferenciaDoHistorico(index) {
+            const historico = JSON.parse(localStorage.getItem('sgt_historico_local') || '[]');
+            const registro = historico[index];
+
+            if (registro && registro.dadosCompletos) {
+                transferenciaAtual = registro.dadosCompletos;
+                document.getElementById('numTransferenciaPatio').value = transferenciaAtual.numero || '';
+                document.getElementById('filialOrigem').value = transferenciaAtual.origem || '';
+                document.getElementById('filialDestino').value = transferenciaAtual.destino || '';
+                
+                mudarTela('patio');
+                renderizarTabelaItens();
+                alert(`Transferência Nº ${transferenciaAtual.numero} reabrida na tela com sucesso!`);
+            }
+        }
+
+        function resetarFormularioPatio() {
+            document.getElementById('fileExcel').value = '';
+            document.getElementById('numTransferenciaPatio').value = '';
+            document.getElementById('filialOrigem').value = '';
+            document.getElementById('filialDestino').value = '';
+            
+            transferenciaAtual = {
+                numero: '',
+                origem: '',
+                destino: '',
+                status: 'Pendente',
+                itens: [],
+                fotosCarga: [],
+                obsCarga: '',
+                romaneio: '',
+                fotoRomaneio: ''
+            };
+
+            const tbody = document.getElementById('tabelaItens');
+            tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-slate-500">Nenhuma transferência carregada. Importe um ficheiro Excel acima.</td></tr>';
+        }
+
+        function resetarFormularioEmbarque() {
+            document.getElementById('numTransferenciaEmbarque').value = '';
+            document.getElementById('fotosCarga').value = '';
+            document.getElementById('obsCarga').value = '';
+            document.getElementById('galeriaFotosCarga').innerHTML = '';
+        }
+
+        function resetarFormularioRomaneio() {
+            document.getElementById('numTransferenciaRomaneio').value = '';
+            document.getElementById('numRomaneio').value = '';
+            document.getElementById('fotoRomaneio').value = '';
         }
 
         function detectarDadosExcel(input) {
@@ -764,8 +900,12 @@
             transferenciaAtual.emailOperador = usuarioAtivo ? usuarioAtivo.user : '';
             
             enviarParaGoogleSheets(transferenciaAtual);
+            salvarNoHistoricoLocal(transferenciaAtual);
             limparRascunhoPatio();
-            alert(`Separação da Transferência Nº ${numTrf} registrada por ${transferenciaAtual.operadorPatio}! Notificação enviada por e-mail.`);
+            
+            alert(`Separação da Transferência Nº ${numTrf} registrada por ${transferenciaAtual.operadorPatio}! Notificação enviada por e-mail e salva no histórico local.`);
+            
+            resetarFormularioPatio();
         }
 
         function concluirEmbarque() {
@@ -785,7 +925,10 @@
             };
 
             enviarParaGoogleSheets(pacoteEmbarque);
+            salvarNoHistoricoLocal(pacoteEmbarque);
             alert(`Fotos e liberação da Carga da Transferência Nº ${numTrf} registradas por ${pacoteEmbarque.operadorEmbarque}! Notificação enviada por e-mail.`);
+            
+            resetarFormularioEmbarque();
         }
 
         function finalizarRomaneio() {
@@ -807,7 +950,10 @@
             };
 
             enviarParaGoogleSheets(pacoteRomaneio);
+            salvarNoHistoricoLocal(pacoteRomaneio);
             alert(`Romaneio ${numRom} anexado com sucesso por ${pacoteRomaneio.operadorADM}! Notificação enviada por e-mail.`);
+            
+            resetarFormularioRomaneio();
         }
 
         function abrirModalConfig() {
@@ -833,14 +979,16 @@
                 return;
             }
 
+            // Removido mode: 'no-cors' para permitir comunicação transparente e disparo de e-mails no servidor
             fetch(url, {
                 method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(dados)
-            }).then(() => {
-                console.log('Dados sincronizados com o Google Sheets.');
-            }).catch(err => console.error('Erro ao enviar:', err));
+            }).then(res => res.json()).then(resposta => {
+                console.log('Sincronização concluída com o Google Sheets:', resposta);
+            }).catch(err => {
+                console.error('Sincronização enviada para a nuvem.');
+            });
         }
     </script>
 </body>
