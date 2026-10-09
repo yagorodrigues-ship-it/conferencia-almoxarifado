@@ -152,73 +152,68 @@
         </div>
     </header>
 
-    <!-- CONTAINER PRINCIPAL LADO A LADO -->
+    <!-- LAYOUT PRINCIPAL (ESTRUTURA LADO A LADO FULLWIDTH) -->
     <div class="w-full px-6 py-4 flex gap-6">
 
-        <!-- PAINEL LATERAL ESQUERDO DA PASTA / CONFERÊNCIA -->
+        <!-- PAINEL LATERAL ESQUERDO: CENTRAL DE TRANSFERÊNCIAS & ANEXOS -->
         <aside id="painelPastasLateral" class="w-80 flex-shrink-0 space-y-4 transition-all duration-300">
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-4 sticky top-20">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                     <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-folder-tree"></i> Seleção de Inventário
+                        <i class="fa-solid fa-folder-tree"></i> Central de Transferências
                     </h3>
-                    <button onclick="alternarPainelPastas()" class="text-slate-400 hover:text-white text-xs" title="Minimizar Painel">
-                        <i id="iconeTogglePainel" class="fa-solid fa-angles-left"></i>
+                    <button onclick="carregarPastasDoServidor()" class="text-slate-400 hover:text-emerald-400 text-xs" title="Atualizar Lista">
+                        <i class="fa-solid fa-rotate-right"></i>
                     </button>
                 </div>
 
-                <!-- SELEÇÃO DA PASTA -->
+                <!-- 1. SELEÇÃO DE PASTA EXISTENTE -->
                 <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Selecione a Pasta:</label>
-                    <select id="selectPastasServidor" onchange="selecionarPastaTransferencia(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-emerald-400 font-bold outline-none focus:border-emerald-500">
-                        <option value="">-- Nenhuma Selecionada --</option>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">1. Selecione a Pasta Existente:</label>
+                    <select id="selectPastasServidor" onchange="selecionarPastaTransferencia(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-emerald-400 font-bold outline-none focus:border-emerald-500">
+                        <option value="">-- Selecione uma Transferência --</option>
                     </select>
                 </div>
 
-                <!-- UPLOAD DO EXCEL DA BASE -->
-                <div class="pt-2 border-t border-slate-800 space-y-2">
-                    <label class="block text-xs font-semibold text-slate-300">Upload Base de Dados (.xlsx):</label>
-                    <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" onchange="detectarDadosExcel(this)" class="block w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer">
-                    <button id="btnCarregarExcel" onclick="carregarExcel()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-upload"></i> Carregar Base Excel
-                    </button>
-                </div>
-
-                <!-- CRIAR NOVA PASTA / CONFERÊNCIA -->
-                <div class="pt-2 border-t border-slate-800 space-y-2">
-                    <label class="block text-xs font-semibold text-slate-300">Nº Transferência / Guia (TM):</label>
-                    <input type="text" id="numTransferenciaPatio" placeholder="Ex: 1911780" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-emerald-400 outline-none">
+                <!-- 2. ABERTURA DE NOVA TRANSFERÊNCIA (TM) -->
+                <div class="pt-3 border-t border-slate-800 space-y-2">
+                    <label class="block text-xs font-semibold text-slate-300">2. Ou Abra uma Nova (Nº TM):</label>
+                    <input type="text" id="numTransferenciaPatio" placeholder="Ex: 1911780" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-emerald-400 outline-none focus:border-emerald-500">
                     <button id="btnAbrirConferencia" onclick="abrirNovaConferencia()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-plus-circle"></i> Criar Nova Conferência
+                        <i class="fa-solid fa-plus-circle"></i> Iniciar Conferência
                     </button>
                 </div>
 
-                <!-- CARDS DE METRICAS (ITENS E LANÇAMENTOS) -->
-                <div class="pt-2 border-t border-slate-800 grid grid-cols-2 gap-2">
+                <!-- 3. ANEXAR PLANILHA DO ERP DA TRANSFERÊNCIA -->
+                <div class="pt-3 border-t border-slate-800 space-y-2">
+                    <label class="block text-xs font-semibold text-slate-300">3. Anexo Excel do ERP (.xlsx / .csv):</label>
+                    <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" onchange="detectarDadosExcel(this)" class="block w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer">
+                    <button id="btnCarregarExcel" onclick="carregarExcel()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-file-import"></i> Carregar Itens do Excel
+                    </button>
+                </div>
+
+                <!-- CARDS DE CONTAGEM -->
+                <div class="pt-3 border-t border-slate-800 grid grid-cols-2 gap-2">
                     <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-center">
                         <p class="text-[10px] text-slate-400 font-bold uppercase">Itens na Base</p>
                         <p id="cardQtdItensBase" class="text-lg font-bold text-white leading-tight">0</p>
                     </div>
                     <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-center">
-                        <p class="text-[10px] text-emerald-400 font-bold uppercase">Lançamentos</p>
+                        <p class="text-[10px] text-emerald-400 font-bold uppercase">Conferidos</p>
                         <p id="cardQtdLancamentos" class="text-lg font-bold text-emerald-400 leading-tight">0</p>
                     </div>
                 </div>
             </div>
         </aside>
 
-        <!-- BOTÃO PARA REABRIR O PAINEL QUANDO MINIMIZADO -->
-        <button id="btnReabrirPainel" onclick="alternarPainelPastas()" class="hidden fixed left-2 top-20 bg-slate-800 hover:bg-slate-700 text-amber-400 p-2.5 rounded-r-xl border border-slate-700 shadow-2xl z-30" title="Expandir Painel Lateral">
-            <i class="fa-solid fa-angles-right"></i>
-        </button>
-
-        <!-- ÁREA CENTRAL DO SISTEMA (FULLWIDTH) -->
+        <!-- ÁREA CENTRAL DO SISTEMA: INFORMAÇÕES DA TRANSFERÊNCIA & TABELA -->
         <main class="flex-1 space-y-6 min-w-0">
 
             <!-- TELA 1: PÁTIO / ALMOXARIFE -->
             <div id="telaPatio" class="space-y-6">
 
-                <!-- CABEÇALHO DA TRANSFERÊNCIA ATIVA -->
+                <!-- CABEÇALHO HORIZONTAL COM AS INFORMAÇÕES DA TRANSFERÊNCIA -->
                 <div class="bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-xl flex flex-wrap justify-between items-center gap-4">
                     <div class="flex items-center gap-4">
                         <div class="w-10 h-10 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-center">
@@ -230,35 +225,35 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 md:grid-cols-2 gap-4 text-xs">
-                        <div class="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
-                            <span class="text-slate-400 block text-[10px]">Origem:</span>
-                            <span id="displayOrigem" class="font-medium text-slate-200">-</span>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div class="bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
+                            <span class="text-slate-400 block text-[10px] uppercase font-bold">Origem (Colunas B + C):</span>
+                            <span id="displayOrigem" class="font-medium text-slate-200 text-xs">-</span>
                         </div>
-                        <div class="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
-                            <span class="text-slate-400 block text-[10px]">Destino:</span>
-                            <span id="displayDestino" class="font-semibold text-emerald-300">-</span>
+                        <div class="bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
+                            <span class="text-slate-400 block text-[10px] uppercase font-bold">Destino (Colunas D + E):</span>
+                            <span id="displayDestino" class="font-semibold text-emerald-300 text-xs">-</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- AVISO DE PASTA FECHADA -->
+                <!-- AVISO DE CONFERÊNCIA FECHADA -->
                 <div id="avisoPastaFechada" class="hidden bg-rose-950/80 border border-rose-800/80 text-rose-200 p-4 rounded-2xl flex items-center gap-3 text-xs font-semibold">
                     <i class="fa-solid fa-lock text-2xl text-rose-400"></i>
                     <div>
                         <p class="font-bold text-sm">Conferência Encerrada / Fechada</p>
-                        <p class="text-rose-300">Esta transferência já foi concluída e enviada para a nuvem. O relatório em Excel foi enviado por e-mail e não é possível alterar itens.</p>
+                        <p class="text-rose-300">Esta transferência já foi finalizada. Não é possível alterar quantidades ou fotos.</p>
                     </div>
                 </div>
 
-                <!-- ETAPA 2: EVIDENCIAÇÃO POR ITEM (FOTOS E QUANTIDADE) -->
+                <!-- ETAPA 2: TABELA DE EVIDENCIAÇÃO POR ITEM (FOTOS E QUANTIDADE) -->
                 <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
                     <div class="flex justify-between items-center border-b border-slate-800 pb-3">
                         <div>
                             <h2 class="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fa-solid fa-boxes-packing"></i> Conferencia de Itens & Evidências
+                                <i class="fa-solid fa-boxes-packing"></i> Evidenciação por Item (Fotos & Quantidade)
                             </h2>
-                            <p class="text-xs text-slate-400 mt-0.5">Confira a quantidade e anexe fotos antes do envio final.</p>
+                            <p class="text-xs text-slate-400 mt-0.5">Confira a quantidade e tire até 5 fotos por item.</p>
                         </div>
                         <button id="btnConcluirSeparacao" onclick="concluirSeparacao()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-900/30">
                             <i class="fa-solid fa-check-double"></i> Concluir Separação (Enviar p/ Nuvem)
@@ -281,7 +276,7 @@
                             </thead>
                             <tbody id="tabelaItens" class="divide-y divide-slate-800/60 bg-slate-900/50">
                                 <tr>
-                                    <td colspan="8" class="p-8 text-center text-slate-500">Selecione uma pasta ou inicie uma nova conferência no painel lateral.</td>
+                                    <td colspan="8" class="p-8 text-center text-slate-500">Selecione uma pasta ou anexe a planilha na barra lateral para iniciar.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -533,19 +528,6 @@
             }
         }
 
-        function alternarPainelPastas() {
-            const painel = document.getElementById('painelPastasLateral');
-            const btnReabrir = document.getElementById('btnReabrirPainel');
-            
-            if (painel.classList.contains('hidden')) {
-                painel.classList.remove('hidden');
-                btnReabrir.classList.add('hidden');
-            } else {
-                painel.classList.add('hidden');
-                btnReabrir.classList.remove('hidden');
-            }
-        }
-
         function mudarTela(tela) {
             document.getElementById('telaPatio').classList.add('hidden');
             document.getElementById('telaEmbarque').classList.add('hidden');
@@ -614,7 +596,7 @@
         function abrirNovaConferencia() {
             let numTrf = document.getElementById('numTransferenciaPatio').value.trim();
             if (!numTrf) {
-                alert('Informe ou carregue o Número da Transferência no campo primeiro.');
+                alert('Informe o Número da Transferência no campo do painel lateral primeiro.');
                 return;
             }
 
@@ -627,8 +609,8 @@
             const pacoteAbertura = {
                 acao: 'abrirPasta',
                 numero: numTrf,
-                origem: document.getElementById('filialOrigem').value.trim(),
-                destino: document.getElementById('filialDestino').value.trim(),
+                origem: '-',
+                destino: '-',
                 operador: usuarioAtivo ? usuarioAtivo.nome : 'Operador'
             };
 
@@ -664,10 +646,11 @@
         function resetarFormularioPatio() {
             document.getElementById('fileExcel').value = '';
             document.getElementById('numTransferenciaPatio').value = '';
-            document.getElementById('filialOrigem').value = '';
-            document.getElementById('filialDestino').value = '';
             document.getElementById('cardQtdItensBase').textContent = '0';
             document.getElementById('cardQtdLancamentos').textContent = '0';
+            document.getElementById('displayTrfAtual').textContent = 'Nenhuma Transferência Aberta';
+            document.getElementById('displayOrigem').textContent = '-';
+            document.getElementById('displayDestino').textContent = '-';
             
             transferenciaAtual = {
                 numero: '',
@@ -682,7 +665,7 @@
             };
 
             const tbody = document.getElementById('tabelaItens');
-            tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-slate-500">Selecione uma pasta ou inicie uma nova conferência no painel lateral.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-slate-500">Selecione uma pasta ou anexe a planilha na barra lateral para iniciar.</td></tr>';
         }
 
         function resetarFormularioEmbarque() {
@@ -724,12 +707,12 @@
                     const codOrigem = row1[1] !== undefined ? String(row1[1]).trim() : '';
                     const descOrigem = row1[2] !== undefined ? String(row1[2]).trim() : '';
                     let origemCompleta = `${codOrigem} - ${descOrigem}`.replace(/^ - |- $/g, '').trim();
-                    if (origemCompleta) document.getElementById('filialOrigem').value = origemCompleta;
+                    if (origemCompleta) document.getElementById('displayOrigem').textContent = origemCompleta;
 
                     const codDestino = row1[3] !== undefined ? String(row1[3]).trim() : '';
                     const descDestino = row1[4] !== undefined ? String(row1[4]).trim() : '';
                     let destinoCompleto = `${codDestino} - ${descDestino}`.replace(/^ - |- $/g, '').trim();
-                    if (destinoCompleto) document.getElementById('filialDestino').value = destinoCompleto;
+                    if (destinoCompleto) document.getElementById('displayDestino').textContent = destinoCompleto;
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -738,14 +721,14 @@
         function carregarExcel() {
             const fileInput = document.getElementById('fileExcel');
             if (!fileInput.files.length) {
-                alert('Por favor, selecione um ficheiro Excel primeiro.');
+                alert('Por favor, selecione um ficheiro Excel na barra lateral primeiro.');
                 return;
             }
 
             const file = fileInput.files[0];
             let numTrf = document.getElementById('numTransferenciaPatio').value.trim();
-            let origem = document.getElementById('filialOrigem').value.trim();
-            let filial = document.getElementById('filialDestino').value.trim();
+            let origem = document.getElementById('displayOrigem').textContent;
+            let filial = document.getElementById('displayDestino').textContent;
 
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -811,8 +794,6 @@
                 }
 
                 document.getElementById('displayTrfAtual').textContent = `Transferência Nº ${numTrf} (Aberto)`;
-                document.getElementById('displayOrigem').textContent = origem || '-';
-                document.getElementById('displayDestino').textContent = filial || '-';
                 document.getElementById('cardQtdItensBase').textContent = transferenciaAtual.itens.length;
                 document.getElementById('cardQtdLancamentos').textContent = transferenciaAtual.itens.length;
 
@@ -923,6 +904,8 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
 
             transferenciaAtual.numero = numTrf;
+            transferenciaAtual.origem = document.getElementById('displayOrigem').textContent;
+            transferenciaAtual.destino = document.getElementById('displayDestino').textContent;
             transferenciaAtual.status = 'Fechado';
             transferenciaAtual.operadorPatio = usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador';
             transferenciaAtual.emailOperador = usuarioAtivo ? usuarioAtivo.user : '';
