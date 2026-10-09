@@ -152,191 +152,208 @@
         </div>
     </header>
 
-    <!-- CONTAINER PRINCIPAL -->
-    <main class="max-w-7xl mx-auto p-4 space-y-6">
+    <!-- LAYOUT COM PAINEL LATERAL DE PASTAS (ESTILO APLICATIVO DE INVENTÁRIO) -->
+    <div class="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-4 gap-6">
 
-        <!-- TELA 1: PÁTIO / ALMOXARIFE -->
-        <div id="telaPatio" class="space-y-6">
-
-            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
-                <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-                    <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-file-import"></i> Etapa 1. Importar Transferência do ERP (Almoxarife)
-                    </h2>
-                    <span id="indicadorRascunho" class="text-xs font-mono bg-slate-950 text-slate-400 px-2.5 py-1 rounded-md border border-slate-800">
-                        Nº TRF Lida da Coluna A (CODIGO)
-                    </span>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Ficheiro Excel (.xlsx / .csv):</label>
-                        <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" onchange="detectarDadosExcel(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº Transferência / Guia:</label>
-                        <input type="text" id="numTransferenciaPatio" onchange="salvarRascunhoAuto()" placeholder="Auto lido da Coluna CODIGO" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm focus:border-emerald-500 outline-none font-bold text-emerald-400">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Origem (Colunas B + C):</label>
-                        <input type="text" id="filialOrigem" onchange="salvarRascunhoAuto()" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-slate-200 font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Destino (Colunas D + E):</label>
-                        <input type="text" id="filialDestino" onchange="salvarRascunhoAuto()" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-emerald-300 font-semibold">
-                    </div>
-                </div>
-
-                <div class="flex justify-end border-t border-slate-800/80 pt-3">
-                    <button onclick="carregarExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition">
-                        <i class="fa-solid fa-play"></i> Carregar Itens do Excel
-                    </button>
-                </div>
-            </div>
-
-            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
-                    <div>
-                        <h2 class="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fa-solid fa-boxes-packing"></i> Etapa 2. Evidenciação por Item (Fotos do Material)
-                        </h2>
-                        <p class="text-xs text-slate-400 mt-0.5">Confira a quantidade e tire até 5 fotos por item.</p>
-                    </div>
-                    <button id="btnConcluirSeparacao" onclick="concluirSeparacao()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-md shadow-emerald-900/20">
-                        <i class="fa-solid fa-check-double"></i> Concluir Separação (Enviar p/ Nuvem)
+        <!-- PAINEL LATERAL ESQUERDO: SELEÇÃO DE PASTA DA TRANSFERÊNCIA -->
+        <aside class="space-y-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-folder-open"></i> Seleção de Conferência
+                    </h3>
+                    <button onclick="carregarPastasDoServidor()" class="text-slate-400 hover:text-emerald-400 text-xs" title="Recarregar do servidor">
+                        <i class="fa-solid fa-rotate-right"></i>
                     </button>
                 </div>
 
-                <div class="overflow-x-auto rounded-xl border border-slate-800">
-                    <table class="w-full text-left text-sm text-slate-300">
-                        <thead class="bg-slate-950 text-xs text-slate-400 uppercase border-b border-slate-800">
-                            <tr>
-                                <th class="p-3">Código (Y)</th>
-                                <th class="p-3">Descrição (Z)</th>
-                                <th class="p-3">Património/Ativo (AD)</th>
-                                <th class="p-3">Lote (AF)</th>
-                                <th class="p-3 text-center">Qtd ERP (AC)</th>
-                                <th class="p-3 text-center">Qtd Conferida</th>
-                                <th class="p-3">Observação / Avaria</th>
-                                <th class="p-3 text-center">Fotos Evidência (Até 5)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelaItens" class="divide-y divide-slate-800/60 bg-slate-900/50">
-                            <tr>
-                                <td colspan="8" class="p-8 text-center text-slate-500">Nenhuma transferência carregada. Importe um ficheiro Excel acima.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Selecione a Pasta:</label>
+                    <select id="selectPastasServidor" onchange="selecionarPastaTransferencia(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-emerald-400 font-bold outline-none focus:border-emerald-500">
+                        <option value="">-- Nenhuma Selecionada --</option>
+                    </select>
+                </div>
+
+                <!-- BANNER DE STATUS DA PASTA SELECIONADA -->
+                <div id="bannerStatusPasta" class="hidden bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs space-y-1">
+                    <p class="font-bold text-slate-200" id="infoPastaNome">TRF: -</p>
+                    <p id="infoPastaStatus" class="text-amber-400 font-bold">Status: -</p>
+                </div>
+
+                <!-- BOTAO PARA ABRIR NOVA CONFERENCIA -->
+                <div class="pt-2 border-t border-slate-800">
+                    <p class="text-[11px] text-slate-400 mb-2">Para criar uma nova conferência, digite a TM e clique abaixo:</p>
+                    <button id="btnAbrirConferencia" onclick="abrirNovaConferencia()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs shadow transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-plus-circle"></i> Iniciar Nova Conferência
+                    </button>
                 </div>
             </div>
+        </aside>
 
-        </div>
+        <!-- ÁREA PRINCIPAL DAS TELAS (3 COLUNAS) -->
+        <main class="lg:col-span-3 space-y-6">
 
-        <!-- TELA 2: EMBARQUE -->
-        <div id="telaEmbarque" class="space-y-6 hidden">
-            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+            <!-- TELA 1: PÁTIO / ALMOXARIFE -->
+            <div id="telaPatio" class="space-y-6">
+
+                <!-- AVISO DE CONFERÊNCIA FECHADA (BLOQUEIO) -->
+                <div id="avisoPastaFechada" class="hidden bg-rose-950/80 border border-rose-800/80 text-rose-200 p-4 rounded-2xl flex items-center gap-3 text-xs font-semibold">
+                    <i class="fa-solid fa-lock text-xl text-rose-400"></i>
                     <div>
+                        <p class="font-bold text-sm">Conferência Encerrada / Fechada</p>
+                        <p class="text-rose-300">Esta transferência já foi concluída e enviada para a nuvem. Não é possível alterar itens ou anexar novas fotos.</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
+                    <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
                         <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fa-solid fa-truck-ramp-box"></i> Liberação da Carga & Caminhão (Encarregado)
+                            <i class="fa-solid fa-file-import"></i> Etapa 1. Importar Transferência do ERP (Almoxarife)
                         </h2>
-                        <p class="text-xs text-slate-400 mt-0.5">Informe o número da transferência cadastrada no pátio para vincular as fotos do envio.</p>
+                        <span id="indicadorRascunho" class="text-xs font-mono bg-slate-950 text-slate-400 px-2.5 py-1 rounded-md border border-slate-800">
+                            Nº TRF Lida da Coluna A (CODIGO)
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Ficheiro Excel (.xlsx / .csv):</label>
+                            <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" onchange="detectarDadosExcel(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº Transferência / Guia:</label>
+                            <input type="text" id="numTransferenciaPatio" onchange="salvarRascunhoAuto()" placeholder="Auto lido da Coluna CODIGO" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm focus:border-emerald-500 outline-none font-bold text-emerald-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Origem (Colunas B + C):</label>
+                            <input type="text" id="filialOrigem" onchange="salvarRascunhoAuto()" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-slate-200 font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Destino (Colunas D + E):</label>
+                            <input type="text" id="filialDestino" onchange="salvarRascunhoAuto()" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-emerald-300 font-semibold">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end border-t border-slate-800/80 pt-3">
+                        <button id="btnCarregarExcel" onclick="carregarExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition">
+                            <i class="fa-solid fa-play"></i> Carregar Itens do Excel
+                        </button>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div class="md:col-span-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
-                        <label class="block text-xs font-semibold text-emerald-400 mb-1.5">Nº da Transferência / Guia:</label>
-                        <input type="text" id="numTransferenciaEmbarque" placeholder="Digite o Nº da Transferência (Ex: 1916447)" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-base font-bold text-emerald-400 outline-none focus:border-emerald-500">
+                <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                        <div>
+                            <h2 class="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-boxes-packing"></i> Etapa 2. Evidenciação por Item (Fotos do Material)
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-0.5">Confira a quantidade e tire até 5 fotos por item.</p>
+                        </div>
+                        <button id="btnConcluirSeparacao" onclick="concluirSeparacao()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-md shadow-emerald-900/20">
+                            <i class="fa-solid fa-check-double"></i> Concluir Separação (Enviar p/ Nuvem)
+                        </button>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Fotos da Carga Embalada / Caminhão (Até 5 fotos):</label>
-                        <input type="file" id="fotosCarga" accept="image/*" multiple onchange="previewFotosCarga(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white bg-slate-950 rounded-xl border border-slate-800">
-                        <div id="galeriaFotosCarga" class="flex flex-wrap gap-2 mt-3"></div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Observações do Envio / Lacre / Placa:</label>
-                        <textarea id="obsCarga" rows="4" placeholder="Ex: Carga posicionada no baú 02. Lacre nº 987654. Placa ABC-1234. Saída às 14h." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-slate-200"></textarea>
-                    </div>
-                </div>
-
-                <div class="flex justify-end border-t border-slate-800/80 pt-3">
-                    <button onclick="concluirEmbarque()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-900/20">
-                        <i class="fa-solid fa-truck-fast"></i> Autorizar e Concluir Embarque
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- TELA 3: ROMANEIO -->
-        <div id="telaRomaneio" class="space-y-6 hidden">
-            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
-                    <div>
-                        <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fa-solid fa-file-invoice-dollar"></i> Lançamento de Romaneio Assinado (ADM)
-                        </h2>
-                        <p class="text-xs text-slate-400 mt-0.5">Informe o número da transferência para atualizar o status e vincular o comprovante assinado.</p>
+                    <div class="overflow-x-auto rounded-xl border border-slate-800">
+                        <table class="w-full text-left text-sm text-slate-300">
+                            <thead class="bg-slate-950 text-xs text-slate-400 uppercase border-b border-slate-800">
+                                <tr>
+                                    <th class="p-3">Código (Y)</th>
+                                    <th class="p-3">Descrição (Z)</th>
+                                    <th class="p-3">Património/Ativo (AD)</th>
+                                    <th class="p-3">Lote (AF)</th>
+                                    <th class="p-3 text-center">Qtd ERP (AC)</th>
+                                    <th class="p-3 text-center">Qtd Conferida</th>
+                                    <th class="p-3">Observação / Avaria</th>
+                                    <th class="p-3 text-center">Fotos Evidência (Até 5)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaItens" class="divide-y divide-slate-800/60 bg-slate-900/50">
+                                <tr>
+                                    <td colspan="8" class="p-8 text-center text-slate-500">Nenhuma transferência carregada. Importe um ficheiro Excel acima.</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-emerald-400 mb-1.5">Nº da Transferência / Guia:</label>
-                        <input type="text" id="numTransferenciaRomaneio" placeholder="Ex: 1916447" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-emerald-400 font-bold outline-none focus:border-emerald-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº do Romaneio / Conhecimento:</label>
-                        <input type="text" id="numRomaneio" placeholder="Ex: ROM-88712" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-emerald-500 text-slate-200">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Foto / Digitalização do Romaneio Assinado:</label>
-                        <input type="file" id="fotoRomaneio" accept="image/*" onchange="previewFotoRomaneio(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white bg-slate-950 rounded-xl border border-slate-800">
-                    </div>
-                </div>
-
-                <div class="flex justify-end border-t border-slate-800/80 pt-3">
-                    <button onclick="finalizarRomaneio()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition">
-                        <i class="fa-solid fa-check"></i> Baixar e Concluir Romaneio (Status: Romaneio Assinado)
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- HISTÓRICO LOCAL DE TRANSFERÊNCIAS LANÇADAS RECENTEMENTE -->
-        <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
-            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                    <i class="fa-solid fa-folder-closed text-amber-400"></i> Histórico de Lançamentos Recentes no Sistema (Cache Local)
-                </h3>
-                <span class="text-xs text-slate-400">Clique em 'Reabrir' para trazer os dados de volta para a tela</span>
             </div>
 
-            <div class="overflow-x-auto rounded-xl border border-slate-800">
-                <table class="w-full text-left text-xs text-slate-300">
-                    <thead class="bg-slate-950 text-slate-400 uppercase border-b border-slate-800">
-                        <tr>
-                            <th class="p-3">Data / Hora</th>
-                            <th class="p-3">Nº Transferência</th>
-                            <th class="p-3">Origem</th>
-                            <th class="p-3">Destino</th>
-                            <th class="p-3 text-center">Qtd Itens</th>
-                            <th class="p-3">Operador</th>
-                            <th class="p-3 text-center">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaHistoricoLocal" class="divide-y divide-slate-800/60 bg-slate-900/50">
-                        <tr>
-                            <td colspan="7" class="p-4 text-center text-slate-500">Nenhuma transferência salva localmente ainda.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+            <!-- TELA 2: EMBARQUE -->
+            <div id="telaEmbarque" class="space-y-6 hidden">
+                <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                        <div>
+                            <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-truck-ramp-box"></i> Liberação da Carga & Caminhão (Encarregado)
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-0.5">Informe o número da transferência cadastrada no pátio para vincular as fotos do envio.</p>
+                        </div>
+                    </div>
 
-    </main>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div class="md:col-span-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                            <label class="block text-xs font-semibold text-emerald-400 mb-1.5">Nº da Transferência / Guia:</label>
+                            <input type="text" id="numTransferenciaEmbarque" placeholder="Digite o Nº da Transferência (Ex: 1916447)" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-base font-bold text-emerald-400 outline-none focus:border-emerald-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Fotos da Carga Embalada / Caminhão (Até 5 fotos):</label>
+                            <input type="file" id="fotosCarga" accept="image/*" multiple onchange="previewFotosCarga(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white bg-slate-950 rounded-xl border border-slate-800">
+                            <div id="galeriaFotosCarga" class="flex flex-wrap gap-2 mt-3"></div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Observações do Envio / Lacre / Placa:</label>
+                            <textarea id="obsCarga" rows="4" placeholder="Ex: Carga posicionada no baú 02. Lacre nº 987654. Placa ABC-1234. Saída às 14h." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-slate-200"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end border-t border-slate-800/80 pt-3">
+                        <button onclick="concluirEmbarque()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-900/20">
+                            <i class="fa-solid fa-truck-fast"></i> Autorizar e Concluir Embarque
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TELA 3: ROMANEIO -->
+            <div id="telaRomaneio" class="space-y-6 hidden">
+                <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                        <div>
+                            <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-file-invoice-dollar"></i> Lançamento de Romaneio Assinado (ADM)
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-0.5">Informe o número da transferência para atualizar o status e vincular o comprovante assinado.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-emerald-400 mb-1.5">Nº da Transferência / Guia:</label>
+                            <input type="text" id="numTransferenciaRomaneio" placeholder="Ex: 1916447" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-emerald-400 font-bold outline-none focus:border-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº do Romaneio / Conhecimento:</label>
+                            <input type="text" id="numRomaneio" placeholder="Ex: ROM-88712" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-emerald-500 text-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Foto / Digitalização do Romaneio Assinado:</label>
+                            <input type="file" id="fotoRomaneio" accept="image/*" onchange="previewFotoRomaneio(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white bg-slate-950 rounded-xl border border-slate-800">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end border-t border-slate-800/80 pt-3">
+                        <button onclick="finalizarRomaneio()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition">
+                            <i class="fa-solid fa-check"></i> Baixar e Concluir Romaneio (Status: Romaneio Assinado)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
 
     <!-- MODAL CONFIGURAÇÃO GOOGLE SHEETS -->
     <div id="modalConfig" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
@@ -381,6 +398,7 @@
         }
 
         let usuarioAtivo = JSON.parse(localStorage.getItem('sgt_usuario_ativo') || 'null');
+        let listaPastasServidor = [];
 
         let transferenciaAtual = {
             numero: '',
@@ -398,8 +416,7 @@
             if (usuarioAtivo && usuarioAtivo.nome) {
                 document.getElementById('telaLogin').classList.add('hidden');
                 atualizarHeaderUsuario();
-                restaurarRascunhoSeExistir();
-                renderizarHistoricoLocal();
+                carregarPastasDoServidor();
             } else {
                 document.getElementById('telaLogin').classList.remove('hidden');
             }
@@ -435,8 +452,7 @@
                 document.getElementById('loginUser').value = '';
                 document.getElementById('loginPass').value = '';
                 atualizarHeaderUsuario();
-                restaurarRascunhoSeExistir();
-                renderizarHistoricoLocal();
+                carregarPastasDoServidor();
             } else {
                 alert('Usuário/E-mail ou Senha incorretos!');
             }
@@ -533,106 +549,99 @@
             }
         }
 
-        function salvarRascunhoAuto() {
-            if (transferenciaAtual && transferenciaAtual.itens && transferenciaAtual.itens.length > 0) {
-                transferenciaAtual.numero = document.getElementById('numTransferenciaPatio').value.trim();
-                transferenciaAtual.origem = document.getElementById('filialOrigem').value.trim();
-                transferenciaAtual.destino = document.getElementById('filialDestino').value.trim();
+        // CARREGAR LISTA DE PASTAS DIRETO DO GOOGLE SHEETS
+        function carregarPastasDoServidor() {
+            const url = localStorage.getItem('sgt_script_url');
+            if (!url) return;
 
-                localStorage.setItem('sgt_rascunho_patio', JSON.stringify(transferenciaAtual));
-                document.getElementById('indicadorRascunho').innerHTML = '<i class="fa-solid fa-floppy-disk text-emerald-400"></i> Rascunho Salvo Auto';
-            }
+            fetch(url).then(res => res.json()).then(res => {
+                if (res && res.pastas) {
+                    listaPastasServidor = res.pastas;
+                    const select = document.getElementById('selectPastasServidor');
+                    select.innerHTML = '<option value="">-- Selecione uma Transferência --</option>';
+
+                    res.pastas.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.numero;
+                        opt.textContent = `TRF #${p.numero} (${p.status})`;
+                        select.appendChild(opt);
+                    });
+                }
+            }).catch(e => console.error("Erro ao carregar pastas:", e));
         }
 
-        function restaurarRascunhoSeExistir() {
-            const rascunho = localStorage.getItem('sgt_rascunho_patio');
-            if (rascunho) {
-                try {
-                    const dados = JSON.parse(rascunho);
-                    if (dados && dados.itens && dados.itens.length > 0) {
-                        if (confirm(`Existe uma transferência pendente (Nº ${dados.numero || 'Sem Nº'}) salva em rascunho. Deseja restaurar as fotos e conferências?`)) {
-                            transferenciaAtual = dados;
-                            document.getElementById('numTransferenciaPatio').value = dados.numero || '';
-                            document.getElementById('filialOrigem').value = dados.origem || '';
-                            document.getElementById('filialDestino').value = dados.destino || '';
-                            renderizarTabelaItens();
-                            document.getElementById('indicadorRascunho').innerHTML = '<i class="fa-solid fa-clock-rotate-left text-amber-400"></i> Rascunho Restaurado';
-                        }
-                    }
-                } catch(e) {
-                    console.error('Erro ao restaurar rascunho:', e);
+        function selecionarPastaTransferencia(numTrf) {
+            if (!numTrf) {
+                document.getElementById('bannerStatusPasta').classList.add('hidden');
+                desbloquearTelaConferencia();
+                return;
+            }
+
+            const pasta = listaPastasServidor.find(p => p.numero === numTrf);
+            if (pasta) {
+                document.getElementById('bannerStatusPasta').classList.remove('hidden');
+                document.getElementById('infoPastaNome').textContent = `TRF #${pasta.numero}`;
+                document.getElementById('infoPastaStatus').textContent = `Status: ${pasta.status}`;
+
+                document.getElementById('numTransferenciaPatio').value = pasta.numero;
+                document.getElementById('filialOrigem').value = pasta.origem || '';
+                document.getElementById('filialDestino').value = pasta.destino || '';
+
+                if (pasta.status === 'Fechado') {
+                    bloquearTelaConferencia();
+                } else {
+                    desbloquearTelaConferencia();
                 }
             }
         }
 
-        function limparRascunhoPatio() {
-            localStorage.removeItem('sgt_rascunho_patio');
-            document.getElementById('indicadorRascunho').innerHTML = 'Nº TRF Lida da Coluna A (CODIGO)';
-        }
-
-        function salvarNoHistoricoLocal(dados) {
-            let historico = JSON.parse(localStorage.getItem('sgt_historico_local') || '[]');
-            historico = historico.filter(h => h.numero !== dados.numero);
-            
-            const novoRegistro = {
-                dataHora: new Date().toLocaleString("pt-BR"),
-                numero: dados.numero,
-                origem: dados.origem,
-                destino: dados.destino,
-                qtdItens: dados.itens ? dados.itens.length : 0,
-                operador: dados.operadorPatio || dados.operadorEmbarque || dados.operadorADM || 'Operador',
-                dadosCompletos: dados
-            };
-
-            historico.unshift(novoRegistro);
-            localStorage.setItem('sgt_historico_local', JSON.stringify(historico));
-            renderizarHistoricoLocal();
-        }
-
-        function renderizarHistoricoLocal() {
-            const tbody = document.getElementById('tabelaHistoricoLocal');
-            const historico = JSON.parse(localStorage.getItem('sgt_historico_local') || '[]');
-
-            if (historico.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-500">Nenhuma transferência salva localmente ainda.</td></tr>';
+        function abrirNovaConferencia() {
+            let numTrf = document.getElementById('numTransferenciaPatio').value.trim();
+            if (!numTrf) {
+                alert('Informe ou carregue o Número da Transferência primeiro.');
                 return;
             }
 
-            tbody.innerHTML = '';
-            historico.forEach((item, index) => {
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-slate-800/40 transition';
-                tr.innerHTML = `
-                    <td class="p-3 text-slate-400 font-mono">${item.dataHora}</td>
-                    <td class="p-3 font-bold text-emerald-400 font-mono">${item.numero}</td>
-                    <td class="p-3 text-slate-200">${item.origem}</td>
-                    <td class="p-3 text-emerald-300 font-medium">${item.destino}</td>
-                    <td class="p-3 text-center font-bold text-amber-400">${item.qtdItens}</td>
-                    <td class="p-3 text-slate-300">${item.operador}</td>
-                    <td class="p-3 text-center">
-                        <button onclick="reabrirTransferenciaDoHistorico(${index})" class="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 font-bold px-3 py-1 rounded-lg text-xs transition">
-                            <i class="fa-solid fa-folder-open mr-1"></i> Reabrir
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+            const url = localStorage.getItem('sgt_script_url');
+            if (!url) {
+                alert('Configure a URL do Google Sheets no botão superior.');
+                return;
+            }
+
+            const pacoteAbertura = {
+                acao: 'abrirPasta',
+                numero: numTrf,
+                origem: document.getElementById('filialOrigem').value.trim(),
+                destino: document.getElementById('filialDestino').value.trim(),
+                operador: usuarioAtivo ? usuarioAtivo.nome : 'Operador'
+            };
+
+            fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(pacoteAbertura)
+            }).then(() => {
+                alert(`Conferência para a TRF #${numTrf} iniciada e registrada no servidor!`);
+                carregarPastasDoServidor();
+                desbloquearTelaConferencia();
             });
         }
 
-        function reabrirTransferenciaDoHistorico(index) {
-            const historico = JSON.parse(localStorage.getItem('sgt_historico_local') || '[]');
-            const registro = historico[index];
+        function bloquearTelaConferencia() {
+            document.getElementById('avisoPastaFechada').classList.remove('hidden');
+            document.getElementById('fileExcel').disabled = true;
+            document.getElementById('btnCarregarExcel').disabled = true;
+            document.getElementById('btnConcluirSeparacao').disabled = true;
+            document.getElementById('btnConcluirSeparacao').classList.add('opacity-50', 'cursor-not-allowed');
+        }
 
-            if (registro && registro.dadosCompletos) {
-                transferenciaAtual = registro.dadosCompletos;
-                document.getElementById('numTransferenciaPatio').value = transferenciaAtual.numero || '';
-                document.getElementById('filialOrigem').value = transferenciaAtual.origem || '';
-                document.getElementById('filialDestino').value = transferenciaAtual.destino || '';
-                
-                mudarTela('patio');
-                renderizarTabelaItens();
-                alert(`Transferência Nº ${transferenciaAtual.numero} reaberta na tela com sucesso!`);
-            }
+        function desbloquearTelaConferencia() {
+            document.getElementById('avisoPastaFechada').classList.add('hidden');
+            document.getElementById('fileExcel').disabled = false;
+            document.getElementById('btnCarregarExcel').disabled = false;
+            document.getElementById('btnConcluirSeparacao').disabled = false;
+            document.getElementById('btnConcluirSeparacao').classList.remove('opacity-50', 'cursor-not-allowed');
         }
 
         function resetarFormularioPatio() {
@@ -702,8 +711,6 @@
                     const descDestino = row1[4] !== undefined ? String(row1[4]).trim() : '';
                     let destinoCompleto = `${codDestino} - ${descDestino}`.replace(/^ - |- $/g, '').trim();
                     if (destinoCompleto) document.getElementById('filialDestino').value = destinoCompleto;
-
-                    salvarRascunhoAuto();
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -785,7 +792,6 @@
                 }
 
                 renderizarTabelaItens();
-                salvarRascunhoAuto();
                 alert(`Transferência Nº ${transferenciaAtual.numero} carregada! ${transferenciaAtual.itens.length} itens extraídos.`);
             };
 
@@ -829,12 +835,10 @@
 
         function atualizarQtd(index, val) {
             transferenciaAtual.itens[index].qtdConferida = Number(val);
-            salvarRascunhoAuto();
         }
 
         function atualizarObs(index, val) {
             transferenciaAtual.itens[index].obs = val;
-            salvarRascunhoAuto();
         }
 
         function adicionarFotoItem(index, input) {
@@ -847,7 +851,6 @@
                     reader.onload = function(e) {
                         item.fotos.push(e.target.result);
                         renderizarTabelaItens();
-                        salvarRascunhoAuto();
                     };
                     reader.readAsDataURL(file);
                 }
@@ -895,18 +898,15 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
 
             transferenciaAtual.numero = numTrf;
-            transferenciaAtual.status = 'Aguardando Embarque';
+            transferenciaAtual.status = 'Fechado';
             transferenciaAtual.operadorPatio = usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador';
             transferenciaAtual.emailOperador = usuarioAtivo ? usuarioAtivo.user : '';
             
-            // Salva no histórico local imediatamente
-            salvarNoHistoricoLocal(transferenciaAtual);
-            limparRascunhoPatio();
-
             enviarParaGoogleSheets(transferenciaAtual, function() {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa-solid fa-check-double"></i> Concluir Separação (Enviar p/ Nuvem)';
-                alert(`Separação da Transferência Nº ${numTrf} concluída com sucesso! Os dados e fotos foram gravados.`);
+                alert(`Separação da Transferência Nº ${numTrf} concluída e FECHADA no servidor!`);
+                carregarPastasDoServidor();
                 resetarFormularioPatio();
             });
         }
@@ -926,8 +926,6 @@
                 operadorEmbarque: usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador',
                 emailOperador: usuarioAtivo ? usuarioAtivo.user : ''
             };
-
-            salvarNoHistoricoLocal(pacoteEmbarque);
 
             enviarParaGoogleSheets(pacoteEmbarque, function() {
                 alert(`Fotos e liberação da Carga da Transferência Nº ${numTrf} registradas!`);
@@ -952,8 +950,6 @@
                 operadorADM: usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador',
                 emailOperador: usuarioAtivo ? usuarioAtivo.user : ''
             };
-
-            salvarNoHistoricoLocal(pacoteRomaneio);
 
             enviarParaGoogleSheets(pacoteRomaneio, function() {
                 alert(`Romaneio ${numRom} anexado com sucesso!`);
