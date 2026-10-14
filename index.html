@@ -10,6 +10,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SheetJS (Leitura de Excel .xlsx / .csv) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        .badge-status {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
 
@@ -109,8 +117,8 @@
     </div>
 
     <!-- HEADER / NAVEGAÇÃO -->
-    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 shadow-lg w-full">
-        <div class="w-full px-6 py-3 flex flex-wrap justify-between items-center gap-3">
+    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center">
                     <i class="fa-solid font-bold text-xl text-emerald-400 fa-boxes-stacked"></i>
@@ -121,18 +129,20 @@
                 </div>
             </div>
 
+            <!-- Botões de Troca de Tela -->
             <div class="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
-                <button id="btnNavPatio" onclick="mudarTela('patio')" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30">
+                <button id="btnNavPatio" onclick="mudarTela('patio')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30">
                     <i class="fa-solid fa-hard-hat mr-1.5"></i> Tela 1: Pátio
                 </button>
-                <button id="btnNavEmbarque" onclick="mudarTela('embarque')" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                <button id="btnNavEmbarque" onclick="mudarTela('embarque')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition">
                     <i class="fa-solid fa-truck-ramp-box mr-1.5"></i> Tela 2: Embarque
                 </button>
-                <button id="btnNavRomaneio" onclick="mudarTela('romaneio')" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                <button id="btnNavRomaneio" onclick="mudarTela('romaneio')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition">
                     <i class="fa-solid fa-file-signature mr-1.5"></i> Tela 3: Romaneio
                 </button>
             </div>
 
+            <!-- Usuário Logado & Configurações -->
             <div class="flex items-center gap-2">
                 <div class="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs flex items-center gap-2">
                     <i class="fa-solid fa-user-check text-emerald-400"></i>
@@ -152,215 +162,160 @@
         </div>
     </header>
 
-    <!-- LAYOUT PRINCIPAL -->
-    <div class="w-full px-6 py-4 flex gap-6 relative">
+    <!-- CONTAINER PRINCIPAL -->
+    <main class="max-w-7xl mx-auto p-4">
 
-        <!-- PAINEL LATERAL ESQUERDO: CENTRAL DE TRANSFERÊNCIAS -->
-        <aside id="painelPastasLateral" class="w-80 flex-shrink-0 space-y-4 transition-all duration-300">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-4 sticky top-20">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-folder-tree"></i> Central de Transferências
-                    </h3>
-                    <div class="flex items-center gap-2">
-                        <button onclick="carregarPastasDoServidor()" class="text-slate-400 hover:text-emerald-400 text-xs" title="Atualizar Lista">
-                            <i class="fa-solid fa-rotate-right"></i>
-                        </button>
-                        <button onclick="alternarPainelPastas()" class="text-amber-400 hover:text-amber-300 font-bold px-1 text-sm transition" title="Ocultar Painel Lateral">
-                            <i class="fa-solid fa-angles-left"></i>
-                        </button>
+        <!-- TELA 1: PÁTIO / ALMOXARIFE -->
+        <div id="telaPatio" class="space-y-6">
+
+            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+                    <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-file-import"></i> Etapa 1. Importar Transferência do ERP (Almoxarife)
+                    </h2>
+                    <span class="text-xs text-slate-400 font-mono bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800">
+                        Nº TRF Lida da Coluna A (CODIGO)
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Ficheiro Excel (.xlsx / .csv):</label>
+                        <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" onchange="detectarDadosExcel(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº Transferência / Guia:</label>
+                        <input type="text" id="numTransferenciaPatio" placeholder="Auto lido da Coluna CODIGO" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm focus:border-emerald-500 outline-none font-bold text-emerald-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Origem (Colunas B + C):</label>
+                        <input type="text" id="filialOrigem" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-slate-200 font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Destino (Colunas D + E):</label>
+                        <input type="text" id="filialDestino" placeholder="Auto lido do Excel" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-500 outline-none text-emerald-300 font-semibold">
                     </div>
                 </div>
 
-                <!-- 1. SELEÇÃO DE PASTA EXISTENTE -->
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">1. Selecione a Pasta Existente:</label>
-                    <select id="selectPastasServidor" onchange="selecionarPastaTransferencia(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-emerald-400 font-bold outline-none focus:border-emerald-500">
-                        <option value="">-- Selecione uma Transferência --</option>
-                    </select>
+                <div class="flex justify-end border-t border-slate-800/80 pt-3">
+                    <button onclick="carregarExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition">
+                        <i class="fa-solid fa-play"></i> Carregar Itens do Excel
+                    </button>
                 </div>
+            </div>
 
-                <!-- 2. ANEXAR PLANILHA DO ERP DA TRANSFERÊNCIA -->
-                <div class="pt-3 border-t border-slate-800 space-y-2">
-                    <label class="block text-xs font-semibold text-slate-300">2. Anexo Excel do ERP (.xlsx / .csv):</label>
-                    <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" onchange="detectarDadosExcel(this)" class="block w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer">
-                    <button id="btnCarregarExcel" onclick="carregarExcel()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-file-import"></i> Carregar & Liberar Conferência
+            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-boxes-packing"></i> Etapa 2. Evidenciação por Item (Fotos do Material)
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Confira a quantidade e tire até 5 fotos por item antes de enviar para a expedição.</p>
+                    </div>
+                    <button onclick="concluirSeparacao()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-md shadow-emerald-900/20">
+                        <i class="fa-solid fa-check-double"></i> Concluir Separação (Enviar p/ Nuvem)
                     </button>
                 </div>
 
-                <!-- 3. EXIBIÇÃO AUTOMÁTICA DO Nº DA TM LIDO -->
-                <div class="pt-3 border-t border-slate-800 space-y-1">
-                    <label class="block text-xs font-semibold text-slate-300">Nº Transferência Lida (Auto):</label>
-                    <input type="text" id="numTransferenciaPatio" readonly placeholder="Aguardando Anexo Excel..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-amber-400 outline-none cursor-not-allowed">
-                </div>
-
-                <!-- CARDS DE CONTAGEM -->
-                <div class="pt-3 border-t border-slate-800 grid grid-cols-2 gap-2">
-                    <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-center">
-                        <p class="text-[10px] text-slate-400 font-bold uppercase">Itens na Base</p>
-                        <p id="cardQtdItensBase" class="text-lg font-bold text-white leading-tight">0</p>
-                    </div>
-                    <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-center">
-                        <p class="text-[10px] text-emerald-400 font-bold uppercase font-bold">Com Foto</p>
-                        <p id="cardQtdComFoto" class="text-lg font-bold text-emerald-400 leading-tight">0</p>
-                    </div>
+                <div class="overflow-x-auto rounded-xl border border-slate-800">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="bg-slate-950 text-xs text-slate-400 uppercase border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">Código (Y)</th>
+                                <th class="p-3">Descrição (Z)</th>
+                                <th class="p-3">Património/Ativo (AD)</th>
+                                <th class="p-3">Lote (AF)</th>
+                                <th class="p-3 text-center">Qtd ERP (AC)</th>
+                                <th class="p-3 text-center">Qtd Conferida</th>
+                                <th class="p-3">Observação / Avaria</th>
+                                <th class="p-3 text-center">Fotos Evidência (Até 5)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaItens" class="divide-y divide-slate-800/60 bg-slate-900/50">
+                            <tr>
+                                <td colspan="8" class="p-8 text-center text-slate-500">Nenhuma transferência carregada. Importe um ficheiro Excel acima.</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </aside>
 
-        <!-- BOTÃO FLUTUANTE PARA REABRIR PAINEL LATERAL SE OCULTO -->
-        <button id="btnReabrirPainel" onclick="alternarPainelPastas()" class="hidden fixed left-2 top-24 bg-slate-900 border border-slate-700 text-amber-400 px-2.5 py-3 rounded-r-xl shadow-2xl hover:bg-slate-800 transition z-30 flex items-center gap-1 text-xs font-bold" title="Expandir Painel Lateral">
-            <i class="fa-solid fa-angles-right"></i>
-        </button>
+        </div>
 
-        <!-- ÁREA CENTRAL DO SISTEMA (FULLWIDTH) -->
-        <main class="flex-1 space-y-6 min-w-0">
-
-            <!-- TELA 1: PÁTIO / ALMOXARIFE -->
-            <div id="telaPatio" class="space-y-6">
-
-                <!-- CABEÇALHO HORIZONTAL DA TRANSFERÊNCIA ATIVA -->
-                <div class="bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-xl flex flex-wrap justify-between items-center gap-4">
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-center">
-                            <i class="fa-solid fa-file-invoice text-amber-400 text-lg"></i>
-                        </div>
-                        <div>
-                            <p class="text-xs text-slate-400">Transferência Selecionada:</p>
-                            <h2 id="displayTrfAtual" class="text-base font-bold text-emerald-400">Nenhuma Transferência Aberta</h2>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                        <div class="bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
-                            <span class="text-slate-400 block text-[10px] uppercase font-bold">Origem (Colunas B + C):</span>
-                            <span id="displayOrigem" class="font-medium text-slate-200 text-xs">-</span>
-                        </div>
-                        <div class="bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
-                            <span class="text-slate-400 block text-[10px] uppercase font-bold">Destino (Colunas D + E):</span>
-                            <span id="displayDestino" class="font-semibold text-emerald-300 text-xs">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- AVISO DE CONFERÊNCIA FECHADA -->
-                <div id="avisoPastaFechada" class="hidden bg-rose-950/80 border border-rose-800/80 text-rose-200 p-4 rounded-2xl flex items-center gap-3 text-xs font-semibold">
-                    <i class="fa-solid fa-lock text-2xl text-rose-400"></i>
+        <!-- TELA 2: EMBARQUE -->
+        <div id="telaEmbarque" class="space-y-6 hidden">
+            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
                     <div>
-                        <p class="font-bold text-sm">Conferência Encerrada / Fechada</p>
-                        <p class="text-rose-300">Esta transferência já foi finalizada. Não é possível alterar quantidades ou fotos.</p>
-                    </div>
-                </div>
-
-                <!-- ETAPA 2: TABELA DE EVIDENCIAÇÃO POR ITEM (FOTOS E QUANTIDADE) -->
-                <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
-                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                        <div>
-                            <h2 class="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fa-solid fa-boxes-packing"></i> Evidenciação por Item (Fotos & Quantidade)
-                            </h2>
-                            <p class="text-xs text-slate-400 mt-0.5">Atenção: Todos os itens precisam obrigatoriamente de ao menos 1 foto para permitir a conclusão.</p>
-                        </div>
-                        <button id="btnConcluirSeparacao" onclick="concluirSeparacao()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-900/30">
-                            <i class="fa-solid fa-check-double"></i> Concluir Separação (Enviar p/ Nuvem)
-                        </button>
-                    </div>
-
-                    <div class="overflow-x-auto rounded-xl border border-slate-800">
-                        <table class="w-full text-left text-sm text-slate-300">
-                            <thead class="bg-slate-950 text-xs text-slate-400 uppercase border-b border-slate-800">
-                                <tr>
-                                    <th class="p-3">Código (Y)</th>
-                                    <th class="p-3">Descrição (Z)</th>
-                                    <th class="p-3">Património/Ativo (AD)</th>
-                                    <th class="p-3">Lote (AF)</th>
-                                    <th class="p-3 text-center">Qtd ERP (AC)</th>
-                                    <th class="p-3 text-center">Qtd Conferida</th>
-                                    <th class="p-3">Observação / Avaria</th>
-                                    <th class="p-3 text-center">Fotos Evidência (Até 5)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaItens" class="divide-y divide-slate-800/60 bg-slate-900/50">
-                                <tr>
-                                    <td colspan="8" class="p-8 text-center text-slate-500">Anexe a planilha na barra lateral para carregar automaticamente a conferência.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- TELA 2: EMBARQUE -->
-            <div id="telaEmbarque" class="space-y-6 hidden">
-                <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
-                    <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
                         <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
                             <i class="fa-solid fa-truck-ramp-box"></i> Liberação da Carga & Caminhão (Encarregado)
                         </h2>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div class="md:col-span-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
-                            <label class="block text-xs font-semibold text-emerald-400 mb-1.5">Nº da Transferência / Guia:</label>
-                            <input type="text" id="numTransferenciaEmbarque" placeholder="Digite o Nº da Transferência (Ex: 1916447)" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-base font-bold text-emerald-400 outline-none focus:border-emerald-500">
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Fotos da Carga / Caminhão (Até 5 fotos):</label>
-                            <input type="file" id="fotosCarga" accept="image/*" multiple onchange="previewFotosCarga(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white bg-slate-950 rounded-xl border border-slate-800">
-                            <div id="galeriaFotosCarga" class="flex flex-wrap gap-2 mt-3"></div>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Observações do Envio / Lacre / Placa:</label>
-                            <textarea id="obsCarga" rows="4" placeholder="Ex: Carga posicionada no baú 02. Lacre nº 987654. Placa ABC-1234." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-slate-200"></textarea>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end border-t border-slate-800/80 pt-3">
-                        <button onclick="concluirEmbarque()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg transition">
-                            <i class="fa-solid fa-truck-fast"></i> Autorizar e Concluir Embarque
-                        </button>
+                        <p class="text-xs text-slate-400 mt-0.5">Informe o número da transferência cadastrada no pátio para vincular as fotos do envio.</p>
                     </div>
                 </div>
-            </div>
 
-            <!-- TELA 3: ROMANEIO -->
-            <div id="telaRomaneio" class="space-y-6 hidden">
-                <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
-                    <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="md:col-span-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                        <label class="block text-xs font-semibold text-emerald-400 mb-1.5">Nº da Transferência / Guia:</label>
+                        <input type="text" id="numTransferenciaEmbarque" placeholder="Digite o Nº da Transferência (Ex: 1916447)" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-base font-bold text-emerald-400 outline-none focus:border-emerald-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Fotos da Carga Embalada / Caminhão (Até 5 fotos):</label>
+                        <input type="file" id="fotosCarga" accept="image/*" multiple onchange="previewFotosCarga(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white bg-slate-950 rounded-xl border border-slate-800">
+                        <div id="galeriaFotosCarga" class="flex flex-wrap gap-2 mt-3"></div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Observações do Envio / Lacre / Placa:</label>
+                        <textarea id="obsCarga" rows="4" placeholder="Ex: Carga posicionada no baú 02. Lacre nº 987654. Placa ABC-1234. Saída às 14h." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-emerald-500 outline-none text-slate-200"></textarea>
+                    </div>
+                </div>
+
+                <div class="flex justify-end border-t border-slate-800/80 pt-3">
+                    <button onclick="concluirEmbarque()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-900/20">
+                        <i class="fa-solid fa-truck-fast"></i> Autorizar e Concluir Embarque
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TELA 3: ROMANEIO -->
+        <div id="telaRomaneio" class="space-y-6 hidden">
+            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                    <div>
                         <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
                             <i class="fa-solid fa-file-invoice-dollar"></i> Lançamento de Romaneio Assinado (ADM)
                         </h2>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-emerald-400 mb-1.5">Nº da Transferência / Guia:</label>
-                            <input type="text" id="numTransferenciaRomaneio" placeholder="Ex: 1916447" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-emerald-400 font-bold outline-none focus:border-emerald-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº do Romaneio / Conhecimento:</label>
-                            <input type="text" id="numRomaneio" placeholder="Ex: ROM-88712" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-emerald-500 text-slate-200">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Foto do Romaneio Assinado:</label>
-                            <input type="file" id="fotoRomaneio" accept="image/*" onchange="previewFotoRomaneio(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white bg-slate-950 rounded-xl border border-slate-800">
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end border-t border-slate-800/80 pt-3">
-                        <button onclick="finalizarRomaneio()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg transition">
-                            <i class="fa-solid fa-check"></i> Baixar e Concluir Romaneio
-                        </button>
+                        <p class="text-xs text-slate-400 mt-0.5">Informe o número da transferência para atualizar o status e vincular o comprovante assinado.</p>
                     </div>
                 </div>
-            </div>
 
-        </main>
-    </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-emerald-400 mb-1.5">Nº da Transferência / Guia:</label>
+                        <input type="text" id="numTransferenciaRomaneio" placeholder="Ex: 1916447" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-emerald-400 font-bold outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nº do Romaneio / Conhecimento:</label>
+                        <input type="text" id="numRomaneio" placeholder="Ex: ROM-88712" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-emerald-500 text-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Foto / Digitalização do Romaneio Assinado:</label>
+                        <input type="file" id="fotoRomaneio" accept="image/*" onchange="previewFotoRomaneio(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white bg-slate-950 rounded-xl border border-slate-800">
+                    </div>
+                </div>
+
+                <div class="flex justify-end border-t border-slate-800/80 pt-3">
+                    <button onclick="finalizarRomaneio()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition">
+                        <i class="fa-solid fa-check"></i> Baixar e Concluir Romaneio (Status: Romaneio Assinado)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
 
     <!-- MODAL CONFIGURAÇÃO GOOGLE SHEETS -->
     <div id="modalConfig" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
@@ -405,7 +360,6 @@
         }
 
         let usuarioAtivo = JSON.parse(localStorage.getItem('sgt_usuario_ativo') || 'null');
-        let listaPastasServidor = [];
 
         let transferenciaAtual = {
             numero: '',
@@ -423,7 +377,6 @@
             if (usuarioAtivo && usuarioAtivo.nome) {
                 document.getElementById('telaLogin').classList.add('hidden');
                 atualizarHeaderUsuario();
-                carregarPastasDoServidor();
             } else {
                 document.getElementById('telaLogin').classList.remove('hidden');
             }
@@ -459,7 +412,6 @@
                 document.getElementById('loginUser').value = '';
                 document.getElementById('loginPass').value = '';
                 atualizarHeaderUsuario();
-                carregarPastasDoServidor();
             } else {
                 alert('Usuário/E-mail ou Senha incorretos!');
             }
@@ -535,150 +487,25 @@
             }
         }
 
-        function alternarPainelPastas() {
-            const painel = document.getElementById('painelPastasLateral');
-            const btnReabrir = document.getElementById('btnReabrirPainel');
-            
-            if (painel.classList.contains('hidden')) {
-                painel.classList.remove('hidden');
-                btnReabrir.classList.add('hidden');
-            } else {
-                painel.classList.add('hidden');
-                btnReabrir.classList.remove('hidden');
-            }
-        }
-
         function mudarTela(tela) {
             document.getElementById('telaPatio').classList.add('hidden');
             document.getElementById('telaEmbarque').classList.add('hidden');
             document.getElementById('telaRomaneio').classList.add('hidden');
 
-            document.getElementById('btnNavPatio').className = 'px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
-            document.getElementById('btnNavEmbarque').className = 'px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
-            document.getElementById('btnNavRomaneio').className = 'px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
+            document.getElementById('btnNavPatio').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
+            document.getElementById('btnNavEmbarque').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
+            document.getElementById('btnNavRomaneio').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition';
 
             if(tela === 'patio') {
                 document.getElementById('telaPatio').classList.remove('hidden');
-                document.getElementById('btnNavPatio').className = 'px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
+                document.getElementById('btnNavPatio').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
             } else if(tela === 'embarque') {
                 document.getElementById('telaEmbarque').classList.remove('hidden');
-                document.getElementById('btnNavEmbarque').className = 'px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
+                document.getElementById('btnNavEmbarque').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
             } else if(tela === 'romaneio') {
                 document.getElementById('telaRomaneio').classList.remove('hidden');
-                document.getElementById('btnNavRomaneio').className = 'px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
+                document.getElementById('btnNavRomaneio').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/30';
             }
-        }
-
-        function carregarPastasDoServidor() {
-            const url = localStorage.getItem('sgt_script_url');
-            if (!url) return;
-
-            fetch(url).then(res => res.json()).then(res => {
-                if (res && res.pastas) {
-                    listaPastasServidor = res.pastas;
-                    const select = document.getElementById('selectPastasServidor');
-                    select.innerHTML = '<option value="">-- Selecione uma Transferência --</option>';
-
-                    res.pastas.forEach(p => {
-                        const opt = document.createElement('option');
-                        opt.value = p.numero;
-                        opt.textContent = `#${p.numero} - (${p.status})`;
-                        select.appendChild(opt);
-                    });
-                }
-            }).catch(e => console.error("Erro ao carregar pastas:", e));
-        }
-
-        function selecionarPastaTransferencia(numTrf) {
-            if (!numTrf) {
-                document.getElementById('displayTrfAtual').textContent = "Nenhuma Transferência Aberta";
-                document.getElementById('displayOrigem').textContent = "-";
-                document.getElementById('displayDestino').textContent = "-";
-                desbloquearTelaConferencia();
-                return;
-            }
-
-            const pasta = listaPastasServidor.find(p => p.numero === numTrf);
-            if (pasta) {
-                document.getElementById('displayTrfAtual').textContent = `Transferência Nº ${pasta.numero} (${pasta.status})`;
-                document.getElementById('displayOrigem').textContent = pasta.origem || '-';
-                document.getElementById('displayDestino').textContent = pasta.destino || '-';
-                document.getElementById('numTransferenciaPatio').value = pasta.numero;
-
-                if (pasta.status === 'Fechado') {
-                    bloquearTelaConferencia();
-                } else {
-                    desbloquearTelaConferencia();
-                }
-            }
-        }
-
-        function bloquearTelaConferencia() {
-            document.getElementById('avisoPastaFechada').classList.remove('hidden');
-            document.getElementById('fileExcel').disabled = true;
-            document.getElementById('btnCarregarExcel').disabled = true;
-            document.getElementById('btnCarregarExcel').classList.add('opacity-50', 'cursor-not-allowed');
-            document.getElementById('btnConcluirSeparacao').disabled = true;
-            document.getElementById('btnConcluirSeparacao').classList.add('opacity-50', 'cursor-not-allowed');
-        }
-
-        function desbloquearTelaConferencia() {
-            document.getElementById('avisoPastaFechada').classList.add('hidden');
-            document.getElementById('fileExcel').disabled = false;
-            document.getElementById('btnCarregarExcel').disabled = false;
-            document.getElementById('btnCarregarExcel').classList.remove('opacity-50', 'cursor-not-allowed');
-            document.getElementById('btnConcluirSeparacao').disabled = false;
-            document.getElementById('btnConcluirSeparacao').classList.remove('opacity-50', 'cursor-not-allowed');
-        }
-
-        function travarUploadAposCarregar() {
-            document.getElementById('fileExcel').disabled = true;
-            document.getElementById('btnCarregarExcel').disabled = true;
-            document.getElementById('btnCarregarExcel').classList.add('opacity-50', 'cursor-not-allowed');
-            document.getElementById('btnCarregarExcel').innerHTML = '<i class="fa-solid fa-lock"></i> Anexo Bloqueado (Em Conferência)';
-        }
-
-        function resetarFormularioPatio() {
-            document.getElementById('fileExcel').value = '';
-            document.getElementById('numTransferenciaPatio').value = '';
-            document.getElementById('cardQtdItensBase').textContent = '0';
-            document.getElementById('cardQtdComFoto').textContent = '0';
-            document.getElementById('displayTrfAtual').textContent = 'Nenhuma Transferência Aberta';
-            document.getElementById('displayOrigem').textContent = '-';
-            document.getElementById('displayDestino').textContent = '-';
-            
-            document.getElementById('fileExcel').disabled = false;
-            document.getElementById('btnCarregarExcel').disabled = false;
-            document.getElementById('btnCarregarExcel').classList.remove('opacity-50', 'cursor-not-allowed');
-            document.getElementById('btnCarregarExcel').innerHTML = '<i class="fa-solid fa-file-import"></i> Carregar & Liberar Conferência';
-
-            transferenciaAtual = {
-                numero: '',
-                origem: '',
-                destino: '',
-                status: 'Pendente',
-                itens: [],
-                fotosCarga: [],
-                obsCarga: '',
-                romaneio: '',
-                fotoRomaneio: ''
-            };
-
-            const tbody = document.getElementById('tabelaItens');
-            tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-slate-500">Anexe a planilha na barra lateral para carregar automaticamente a conferência.</td></tr>';
-        }
-
-        function resetarFormularioEmbarque() {
-            document.getElementById('numTransferenciaEmbarque').value = '';
-            document.getElementById('fotosCarga').value = '';
-            document.getElementById('obsCarga').value = '';
-            document.getElementById('galeriaFotosCarga').innerHTML = '';
-        }
-
-        function resetarFormularioRomaneio() {
-            document.getElementById('numTransferenciaRomaneio').value = '';
-            document.getElementById('numRomaneio').value = '';
-            document.getElementById('fotoRomaneio').value = '';
         }
 
         function detectarDadosExcel(input) {
@@ -697,21 +524,22 @@
                     let rawTrf = row1[0] !== undefined ? String(row1[0]).trim() : '';
                     let numLimpo = rawTrf.split(',')[0].replace(/\D/g, '');
 
-                    if (!numLimpo) {
-                        numLimpo = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                    if (numLimpo) {
+                        document.getElementById('numTransferenciaPatio').value = numLimpo;
+                    } else {
+                        let nomeSemExtensao = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                        document.getElementById('numTransferenciaPatio').value = nomeSemExtensao;
                     }
-                    
-                    document.getElementById('numTransferenciaPatio').value = numLimpo;
 
                     const codOrigem = row1[1] !== undefined ? String(row1[1]).trim() : '';
                     const descOrigem = row1[2] !== undefined ? String(row1[2]).trim() : '';
                     let origemCompleta = `${codOrigem} - ${descOrigem}`.replace(/^ - |- $/g, '').trim();
-                    if (origemCompleta) document.getElementById('displayOrigem').textContent = origemCompleta;
+                    if (origemCompleta) document.getElementById('filialOrigem').value = origemCompleta;
 
                     const codDestino = row1[3] !== undefined ? String(row1[3]).trim() : '';
                     const descDestino = row1[4] !== undefined ? String(row1[4]).trim() : '';
                     let destinoCompleto = `${codDestino} - ${descDestino}`.replace(/^ - |- $/g, '').trim();
-                    if (destinoCompleto) document.getElementById('displayDestino').textContent = destinoCompleto;
+                    if (destinoCompleto) document.getElementById('filialDestino').value = destinoCompleto;
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -720,14 +548,14 @@
         function carregarExcel() {
             const fileInput = document.getElementById('fileExcel');
             if (!fileInput.files.length) {
-                alert('Por favor, selecione um ficheiro Excel na barra lateral primeiro.');
+                alert('Por favor, selecione um ficheiro Excel primeiro.');
                 return;
             }
 
             const file = fileInput.files[0];
             let numTrf = document.getElementById('numTransferenciaPatio').value.trim();
-            let origem = document.getElementById('displayOrigem').textContent;
-            let filial = document.getElementById('displayDestino').textContent;
+            let origem = document.getElementById('filialOrigem').value.trim();
+            let filial = document.getElementById('filialDestino').value.trim();
 
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -792,32 +620,8 @@
                     }
                 }
 
-                // REGISTRA A ABERTURA NO SERVIDOR AUTOMATICAMENTE
-                const url = localStorage.getItem('sgt_script_url');
-                if (url) {
-                    const pacoteAbertura = {
-                        acao: 'abrirPasta',
-                        numero: numTrf,
-                        origem: origem,
-                        destino: filial,
-                        operador: usuarioAtivo ? usuarioAtivo.nome : 'Operador'
-                    };
-
-                    fetch(url, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify(pacoteAbertura)
-                    }).then(() => carregarPastasDoServidor());
-                }
-
-                document.getElementById('displayTrfAtual').textContent = `Transferência Nº ${numTrf} (Aberto)`;
-                document.getElementById('cardQtdItensBase').textContent = transferenciaAtual.itens.length;
-                document.getElementById('cardQtdComFoto').textContent = '0';
-
                 renderizarTabelaItens();
-                travarUploadAposCarregar();
-                alert(`Conferência liberada para a TRF Nº ${transferenciaAtual.numero}! ${transferenciaAtual.itens.length} itens prontos para evidência.`);
+                alert(`Transferência Nº ${transferenciaAtual.numero} carregada! ${transferenciaAtual.itens.length} itens extraídos.`);
             };
 
             reader.readAsArrayBuffer(file);
@@ -827,11 +631,7 @@
             const tbody = document.getElementById('tabelaItens');
             tbody.innerHTML = '';
 
-            let itensComFotoCount = 0;
-
             transferenciaAtual.itens.forEach((item, index) => {
-                if (item.fotos.length > 0) itensComFotoCount++;
-
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-slate-800/40 transition';
                 tr.innerHTML = `
@@ -849,8 +649,8 @@
                     <td class="p-3 text-center">
                         <div class="flex flex-col items-center gap-1">
                             <input type="file" accept="image/*" multiple id="fotoItem_${index}" onchange="adicionarFotoItem(${index}, this)" class="hidden">
-                            <button onclick="document.getElementById('fotoItem_${index}').click()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-2.5 py-1 rounded-lg border ${item.fotos.length > 0 ? 'border-emerald-500' : 'border-rose-500/80'} flex items-center gap-1">
-                                <i class="fa-solid fa-camera ${item.fotos.length > 0 ? 'text-emerald-400' : 'text-rose-400'}"></i> Fotos (${item.fotos.length}/5)
+                            <button onclick="document.getElementById('fotoItem_${index}').click()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-2.5 py-1 rounded-lg border border-slate-700 flex items-center gap-1">
+                                <i class="fa-solid fa-camera text-emerald-400"></i> Fotos (${item.fotos.length}/5)
                             </button>
                             <div class="flex gap-1 mt-1 flex-wrap justify-center" id="thumbs_${index}">
                                 ${item.fotos.map((img) => `<img src="${img}" class="w-8 h-8 object-cover rounded-md border border-slate-700">`).join('')}
@@ -860,8 +660,6 @@
                 `;
                 tbody.appendChild(tr);
             });
-
-            document.getElementById('cardQtdComFoto').textContent = itensComFotoCount;
         }
 
         function atualizarQtd(index, val) {
@@ -920,40 +718,15 @@
         function concluirSeparacao() {
             let numTrf = document.getElementById('numTransferenciaPatio').value.trim();
             if (!numTrf) {
-                alert('Informe ou carregue o Número da Transferência primeiro.');
+                alert('Informe o Número da Transferência primeiro.');
                 return;
             }
-
-            if (!transferenciaAtual.itens || transferenciaAtual.itens.length === 0) {
-                alert('Nenhum item carregado para transferência.');
-                return;
-            }
-
-            // VALIDAÇÃO OBRIGATÓRIA: TODOS OS ITENS PRECISAM DE PELO MENOS 1 FOTO
-            const itensSemFoto = transferenciaAtual.itens.filter(item => !item.fotos || item.fotos.length === 0);
-            if (itensSemFoto.length > 0) {
-                alert(`⚠️ Não é possível concluir! Existem ${itensSemFoto.length} item(ns) sem nenhuma foto de evidência tirada.`);
-                return;
-            }
-
-            const btn = document.getElementById('btnConcluirSeparacao');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando p/ Nuvem...';
-
             transferenciaAtual.numero = numTrf;
-            transferenciaAtual.origem = document.getElementById('displayOrigem').textContent;
-            transferenciaAtual.destino = document.getElementById('displayDestino').textContent;
-            transferenciaAtual.status = 'Fechado';
+            transferenciaAtual.status = 'Aguardando Embarque';
             transferenciaAtual.operadorPatio = usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador';
-            transferenciaAtual.emailOperador = usuarioAtivo ? usuarioAtivo.user : '';
             
-            enviarParaGoogleSheets(transferenciaAtual, function() {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-check-double"></i> Concluir Separação (Enviar p/ Nuvem)';
-                alert(`Separação da Transferência Nº ${numTrf} concluída e FECHADA com todas as evidências!`);
-                carregarPastasDoServidor();
-                resetarFormularioPatio();
-            });
+            enviarParaGoogleSheets(transferenciaAtual);
+            alert(`Separação da Transferência Nº ${numTrf} registrada por ${transferenciaAtual.operadorPatio}!`);
         }
 
         function concluirEmbarque() {
@@ -968,14 +741,11 @@
                 status: 'Embarcado / Aguardando Romaneio',
                 obsCarga: document.getElementById('obsCarga').value,
                 fotosCarga: transferenciaAtual.fotosCarga,
-                operadorEmbarque: usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador',
-                emailOperador: usuarioAtivo ? usuarioAtivo.user : ''
+                operadorEmbarque: usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador'
             };
 
-            enviarParaGoogleSheets(pacoteEmbarque, function() {
-                alert(`Fotos e liberação da Carga da Transferência Nº ${numTrf} registradas!`);
-                resetarFormularioEmbarque();
-            });
+            enviarParaGoogleSheets(pacoteEmbarque);
+            alert(`Fotos e liberação da Carga da Transferência Nº ${numTrf} registradas por ${pacoteEmbarque.operadorEmbarque}!`);
         }
 
         function finalizarRomaneio() {
@@ -992,14 +762,11 @@
                 romaneio: numRom,
                 status: 'Romaneio Assinado',
                 fotoRomaneio: transferenciaAtual.fotoRomaneio,
-                operadorADM: usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador',
-                emailOperador: usuarioAtivo ? usuarioAtivo.user : ''
+                operadorADM: usuarioAtivo ? `${usuarioAtivo.nome} (${usuarioAtivo.funcao})` : 'Operador'
             };
 
-            enviarParaGoogleSheets(pacoteRomaneio, function() {
-                alert(`Romaneio ${numRom} anexado com sucesso!`);
-                resetarFormularioRomaneio();
-            });
+            enviarParaGoogleSheets(pacoteRomaneio);
+            alert(`Romaneio ${numRom} anexado com sucesso por ${pacoteRomaneio.operadorADM}!`);
         }
 
         function abrirModalConfig() {
@@ -1018,25 +785,21 @@
             alert('URL do Google Sheets salva com sucesso!');
         }
 
-        function enviarParaGoogleSheets(dados, callback) {
+        function enviarParaGoogleSheets(dados) {
             const url = localStorage.getItem('sgt_script_url');
             if (!url) {
                 alert('Configure a URL do Google Sheets no botão superior.');
-                if (callback) callback();
                 return;
             }
 
             fetch(url, {
                 method: 'POST',
                 mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dados)
             }).then(() => {
-                if (callback) callback();
-            }).catch(err => {
-                console.error('Erro na transmissão:', err);
-                if (callback) callback();
-            });
+                console.log('Dados sincronizados com o Google Sheets.');
+            }).catch(err => console.error('Erro ao enviar:', err));
         }
     </script>
 </body>
